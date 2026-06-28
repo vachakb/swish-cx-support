@@ -15,6 +15,9 @@ export interface OrderDetails {
 export const getOrder = (id: string) =>
   db.select().from(orders).where(eq(orders.id, id)).get();
 
+export const getTracking = (orderId: string) =>
+  db.select().from(orderTracking).where(eq(orderTracking.orderId, orderId)).get();
+
 export async function getOrderDetails(id: string): Promise<OrderDetails | undefined> {
   const order = await getOrder(id);
   if (!order) return undefined;

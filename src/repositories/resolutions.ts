@@ -14,6 +14,9 @@ export async function createResolution(input: Omit<NewResolution, 'id'>): Promis
   return (await db.select().from(resolutions).where(eq(resolutions.idempotencyKey, input.idempotencyKey)).get())!;
 }
 
+export const getResolutionByKey = (idempotencyKey: string) =>
+  db.select().from(resolutions).where(eq(resolutions.idempotencyKey, idempotencyKey)).get();
+
 export async function updateResolution(rid: string, patch: Partial<NewResolution>): Promise<void> {
   await db.update(resolutions).set({ ...patch, updatedAt: new Date() }).where(eq(resolutions.id, rid));
 }
