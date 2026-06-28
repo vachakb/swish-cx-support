@@ -1,13 +1,14 @@
 @import 'tailwindcss';
 
+/* Swish brand is a fresh, vibrant green (deliberately not Swiggy orange / Zomato red), with a star mark. */
 @theme {
-  --color-swish-50: #fff4ef;
-  --color-swish-100: #ffe3d6;
-  --color-swish-200: #ffc7af;
-  --color-swish-400: #ff7a52;
-  --color-swish-500: #ff5a32;
-  --color-swish-600: #e8421c;
-  --color-swish-700: #c0330f;
+  --color-swish-50: #ecfdf3;
+  --color-swish-100: #d1fadf;
+  --color-swish-200: #a6f4c5;
+  --color-swish-400: #32d583;
+  --color-swish-500: #16b364;
+  --color-swish-600: #099250;
+  --color-swish-700: #087443;
 }
 
 html,

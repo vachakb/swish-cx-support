@@ -20,7 +20,7 @@ export default function App() {
     <div className="flex h-full flex-col">
       <header className="flex items-center justify-between border-b border-neutral-200 bg-white px-5 py-2.5">
         <div className="flex items-center gap-2.5">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-swish-500 font-bold text-white">S</span>
+          <span className="grid h-8 w-8 place-items-center rounded-lg bg-swish-500 text-white">★</span>
           <div>
             <div className="text-sm font-semibold leading-none text-neutral-900">Swish Support Copilot</div>
             <div className="mt-0.5 text-xs text-neutral-500">10-minute food delivery · automated CX</div>
