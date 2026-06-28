@@ -5,9 +5,9 @@ import type { Conversation } from '../repositories';
 import { polish } from './compose';
 import { checkInput, checkOutput } from './guardrails';
 import { getHandler } from './handlers';
-import { route } from './router';
+import { detectLanguage, detectSentiment, route, ruleIntent } from './router';
 import { Tracer } from './tracer';
-import type { HandlerResult, TurnContext, TurnInput, TurnResult } from './types';
+import type { HandlerResult, RouteResult, TurnContext, TurnInput, TurnResult } from './types';
 
 export interface EngineDeps {
   llm: LlmProvider;
@@ -35,7 +35,13 @@ export async function runTurn(input: TurnInput, deps: EngineDeps): Promise<TurnR
   }
 
   const tracer = new Tracer(conversation.id);
-  const routed = await tracer.step('route', () => route(gate.text, deps.llm));
+  let routed: RouteResult;
+  try {
+    routed = await tracer.step('route', () => route(gate.text, deps.llm));
+  } catch {
+    // LLM routing failed — fall back to rules (or 'unknown') so we still respond gracefully.
+    routed = { intent: ruleIntent(gate.text) ?? 'unknown', confidence: 0.3, sentiment: detectSentiment(gate.text), language: detectLanguage(gate.text) };
+  }
 
   const ctx: TurnContext = {
     input: { ...input, text: gate.text },
