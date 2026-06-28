@@ -20,9 +20,10 @@ export function createGeminiLlm(apiKey: string): LlmProvider {
   };
 
   const baseConfig = (req: LlmRequest): Record<string, unknown> => {
-    const cfg: Record<string, unknown> = { abortSignal: req.signal, httpOptions: { timeout: TIMEOUT_MS } };
+    const tier = req.tier ?? 'smart';
+    const cfg: Record<string, unknown> = { abortSignal: req.signal, httpOptions: { timeout: TIMEOUT_MS }, maxOutputTokens: tier === 'fast' ? 256 : 2048 };
     if (req.system) cfg.systemInstruction = req.system;
-    if ((req.tier ?? 'smart') === 'fast') cfg.thinkingConfig = { thinkingBudget: 0 }; // keep the cheap path cheap
+    if (tier === 'fast') cfg.thinkingConfig = { thinkingBudget: 0 }; // thinking off keeps the cheap path cheap (256 cap stays safe)
     return cfg;
   };
 

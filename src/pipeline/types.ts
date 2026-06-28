@@ -53,6 +53,7 @@ export interface HandlerResult {
   action?: ActionRequest;
   escalationReason?: string;
   data?: Record<string, unknown>; // structured payload the UI renders (eta card, refund card, …)
+  polish?: boolean; // override the default: ask (or skip) the composer's voice round-trip
 }
 
 export interface TurnResult extends HandlerResult {

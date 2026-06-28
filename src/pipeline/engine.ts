@@ -61,8 +61,11 @@ export async function runTurn(input: TurnInput, deps: EngineDeps): Promise<TurnR
   }
 
   // Garbage-out guard. Polish may rephrase; if it leaks persona/provider, fall back to the grounded base reply.
-  const polished = await tracer.step('compose', () => polish(deps.llm, result.reply));
-  const checked = checkOutput(polished);
+  // Polish is an extra model round-trip, so spend it only where natural language adds value —
+  // order issues and escalations. Happy-path fact replies use their on-brand templates (instant).
+  const wantsPolish = result.polish ?? (routed.intent === 'order_issue' || result.status === 'escalated');
+  const composed = wantsPolish ? await tracer.step('compose', () => polish(deps.llm, result.reply)) : result.reply;
+  const checked = checkOutput(composed);
   const reply = checked.ok ? checked.text : checkOutput(result.reply).ok ? result.reply : 'Let me connect you with a teammate to make sure this is handled properly.';
 
   const assistantMsg = await repo.addMessage({ conversationId: conversation.id, role: 'assistant', text: reply, payload: result.data ?? null, traceId: tracer.traceId });
