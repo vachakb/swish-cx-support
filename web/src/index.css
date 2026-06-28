@@ -1,1 +1,20 @@
 @import 'tailwindcss';
+
+@theme {
+  --color-swish-50: #fff4ef;
+  --color-swish-100: #ffe3d6;
+  --color-swish-200: #ffc7af;
+  --color-swish-400: #ff7a52;
+  --color-swish-500: #ff5a32;
+  --color-swish-600: #e8421c;
+  --color-swish-700: #c0330f;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  background-color: #f7f7f8;
+}
