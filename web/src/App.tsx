@@ -22,7 +22,15 @@ export default function App() {
           <Tab active={view === 'inbox'} onClick={() => setView('inbox')}>Shared Inbox</Tab>
         </nav>
       </header>
-      <main className="min-h-0 flex-1">{view === 'arena' ? <Arena /> : <Inbox />}</main>
+      {/* Both views stay mounted so the arena keeps polling and can notify while you're in the inbox. */}
+      <main className="min-h-0 flex-1">
+        <div className={view === 'arena' ? 'h-full' : 'hidden'}>
+          <Arena active={view === 'arena'} />
+        </div>
+        <div className={view === 'inbox' ? 'h-full' : 'hidden'}>
+          <Inbox active={view === 'inbox'} />
+        </div>
+      </main>
     </div>
   );
 }

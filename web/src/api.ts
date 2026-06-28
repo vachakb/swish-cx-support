@@ -24,6 +24,7 @@ export const api = {
   profiles: () => jsonFetch<Customer[]>('/api/profiles'),
   profile: (id: string) => jsonFetch<{ customer: Customer; wallet: Wallet | null; orders: Order[] }>(`/api/profiles/${id}`),
   createProfile: (body: { name: string; area?: string; accountAgeDays?: number }) => postJson<Customer>('/api/profiles', body),
+  createOrder: (id: string, body: unknown) => postJson<{ orderId: string }>(`/api/profiles/${id}/orders`, body),
   inbox: (status?: string) => jsonFetch<Conversation[]>(`/api/conversations${status ? `?status=${status}` : ''}`),
   conversation: (id: string) => jsonFetch<{ conversation: Conversation; messages: Message[]; traces: Trace[] }>(`/api/conversations/${id}`),
   agentReply: (id: string, text: string) => postJson<{ ok: boolean }>(`/api/conversations/${id}/agent-reply`, { text }),

@@ -1,15 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { api } from '../api';
+import { ensureNotifyPermission, notify } from '../notify';
 import type { Customer, Message, Scenario, Trace } from '../types';
 import { Chat } from './Chat';
 import { ProfilePanel } from './ProfilePanel';
-import type { ProfileDetail } from './ProfilePanel';
+import type { OrderPreset, ProfileDetail } from './ProfilePanel';
 import { TracePanel } from './TracePanel';
 
 type ImagePayload = { mimeType: string; dataBase64: string };
 
-export function Arena() {
+const ORDER_PRESETS: Record<OrderPreset, unknown> = {
+  stuck: { status: 'arriving', promisedInMin: -12, items: [{ name: 'Masala Chai', quantity: 2, unitPrice: 4000 }, { name: 'Veg Biryani', quantity: 1, unitPrice: 18000 }], tracking: { etaSeconds: 180, etaAgeSec: 1200, gpsAgeSec: 1200, stateAgeSec: 1200 } },
+  healthy: { status: 'dispatched', promisedInMin: 6, items: [{ name: 'Paneer Roll', quantity: 2, unitPrice: 9000 }], tracking: { etaSeconds: 300, etaAgeSec: 15, gpsAgeSec: 8, stateAgeSec: 90 } },
+  delivered: { status: 'delivered', promisedInMin: -50, items: [{ name: 'Filter Coffee', quantity: 1, unitPrice: 4000 }, { name: 'Masala Dosa', quantity: 1, unitPrice: 12000 }] },
+};
+
+export function Arena({ active }: { active: boolean }) {
   const [profiles, setProfiles] = useState<Customer[]>([]);
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [profileId, setProfileId] = useState<string>();
@@ -22,11 +29,32 @@ export function Arena() {
   const [status, setStatus] = useState<string>();
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  const seenAgent = useRef<Set<string>>(new Set());
 
+  const refreshProfiles = () => api.profiles().then(setProfiles).catch(() => {});
   useEffect(() => {
-    api.profiles().then(setProfiles).catch(() => {});
+    refreshProfiles();
     api.scenarios().then(setScenarios).catch(() => {});
   }, []);
+
+  // Poll the open conversation for human (agent) replies; surface them — and notify if you've left the chat.
+  useEffect(() => {
+    if (!conversationId) return;
+    const tick = async () => {
+      try {
+        const { messages: server } = await api.conversation(conversationId);
+        const fresh = server.filter((m) => m.role === 'agent' && !seenAgent.current.has(m.id));
+        if (fresh.length === 0) return;
+        fresh.forEach((m) => seenAgent.current.add(m.id));
+        setMessages((cur) => [...cur, ...fresh.map((m) => ({ id: m.id, role: 'agent' as const, text: m.text, createdAt: m.createdAt }))]);
+        if (!active || document.hidden) notify('Swish Support', fresh[fresh.length - 1]!.text);
+      } catch {
+        /* ignore poll errors */
+      }
+    };
+    const iv = setInterval(tick, 4000);
+    return () => clearInterval(iv);
+  }, [conversationId, active]);
 
   async function loadProfile(id: string) {
     setProfileId(id);
@@ -42,6 +70,7 @@ export function Arena() {
     setMessages([]);
     setTrace(null);
     setStatus(undefined);
+    seenAgent.current = new Set();
   }
 
   async function pickProfile(id: string) {
@@ -58,11 +87,35 @@ export function Arena() {
     await loadProfile(s.customerId);
   }
 
+  async function createProfile(name: string, area: string) {
+    try {
+      const c = await api.createProfile({ name, area });
+      await refreshProfiles();
+      resetThread();
+      setOrderId(undefined);
+      await loadProfile(c.id);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function createOrder(preset: OrderPreset) {
+    if (!profileId) return;
+    try {
+      await api.createOrder(profileId, ORDER_PRESETS[preset]);
+      setOrderId(undefined); // let the engine pick the newest matching order
+      await loadProfile(profileId);
+    } catch {
+      /* ignore */
+    }
+  }
+
   function appended(role: Message['role'], text: string): Message {
     return { id: crypto.randomUUID(), role, text, createdAt: '' };
   }
 
   async function send(text: string, image?: ImagePayload) {
+    void ensureNotifyPermission();
     setSending(true);
     setMessages((m) => [...m, appended('user', text)]);
     setDraft('');
@@ -83,7 +136,16 @@ export function Arena() {
   return (
     <div className="grid h-full grid-cols-[300px_1fr_330px] max-lg:grid-cols-1 max-lg:overflow-y-auto">
       <aside className="border-r border-neutral-200 bg-white max-lg:border-b">
-        <ProfilePanel scenarios={scenarios} profiles={profiles} selectedId={profileId} detail={detail} onPickScenario={pickScenario} onPickProfile={pickProfile} />
+        <ProfilePanel
+          scenarios={scenarios}
+          profiles={profiles}
+          selectedId={profileId}
+          detail={detail}
+          onPickScenario={pickScenario}
+          onPickProfile={pickProfile}
+          onCreateProfile={createProfile}
+          onCreateOrder={createOrder}
+        />
       </aside>
       <section className="flex min-h-0 flex-col max-lg:h-[70vh]">
         <div className="flex items-center justify-between border-b border-neutral-200 bg-white px-4 py-2">
