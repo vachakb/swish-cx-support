@@ -27,14 +27,15 @@ Production-style single server (API + built UI on one port):
 npm run build && npm start   # http://localhost:8787
 ```
 
-## Try this in the Play Arena
-Pick a scenario on the left, then chat — the **live trace panel** on the right shows every routing/ETA/policy decision.
-- **"Late order, tracking stuck at 3 min"** → ask *"where is my order?"* → watch it refuse the stale ETA, apologise, credit ₹30, and escalate. (Contrast with **"Normal where is my order?"** → an honest live ETA.)
-- **"Spillage with photo"** → attach any image → the photo corroborates the claim → instant Swish credit.
-- **"Wrong order (repeat claimant)"** → the fraud-velocity rule trips → escalation instead of an auto-refund.
-- **"Where's my referral reward?"** → a FAQ that's secretly a data query — it reads the live wallet.
-- **Human handoff + notification** → trigger an escalation, switch to **Shared Inbox**, reply as a human → the customer gets a browser notification back in the Arena.
-- **Make your own** → *+ new* profile, add a **Stuck / Healthy / Delivered** order, and chat as them.
+## Try it (after `npm run dev`)
+Four tabs across the top — **Help · Play Arena · WhatsApp · Shared Inbox**:
+- **Help** — the self-serve FAQ. Search or browse; most common questions resolve right here (no human). "Still need help?" hands off to chat.
+- **Play Arena** — pick a profile on the left, optionally add a **Stuck / Healthy / Delivered** order, then chat (the **live decision trace** is on the right):
+  - Add a **Stuck** order → ask *"where is my order?"* → it refuses the frozen ETA, apologises, credits ₹30, and escalates. (Add a **Healthy** order for the honest-ETA contrast.)
+  - On a **delivered** order, say it spilled and attach any photo → the image corroborates the claim → instant Swish credit. (Act as **Rahul** to see the fraud-velocity rule escalate instead.)
+  - *"Where's my referral reward?"* (act as **Neha**) → reads the live wallet — a FAQ that's secretly a data query.
+- **WhatsApp** — the same engine in a WhatsApp-styled thread.
+- **Shared Inbox** — open an escalated conversation and reply as a human → the customer gets a browser notification back in the chat.
 
 ## Architecture
 `channel adapter → intake → input guardrails → hybrid router (+sentiment/language) → context + image validation → vertical handler (FAQ · order-info/ETA-Truth · order-action) → deterministic policy + fraud engine → idempotent executor → response composer → output guardrails → escalation / offline fallback`, with per-turn tracing and a routing bake-off.
