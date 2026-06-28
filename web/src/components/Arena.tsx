@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { api } from '../api';
 import { ensureNotifyPermission, notify } from '../notify';
-import type { Customer, FaqCategory, Message, Scenario, Trace } from '../types';
+import type { Customer, FaqCategory, Message, Trace } from '../types';
 import { Chat } from './Chat';
 import { Faq } from './Faq';
 import { ProfilePanel } from './ProfilePanel';
@@ -19,7 +19,6 @@ const ORDER_PRESETS: Record<OrderPreset, unknown> = {
 
 export function Arena({ active }: { active: boolean }) {
   const [profiles, setProfiles] = useState<Customer[]>([]);
-  const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [profileId, setProfileId] = useState<string>();
   const [detail, setDetail] = useState<ProfileDetail | null>(null);
   const [channel, setChannel] = useState<'web' | 'whatsapp'>('web');
@@ -37,7 +36,6 @@ export function Arena({ active }: { active: boolean }) {
   const refreshProfiles = () => api.profiles().then(setProfiles).catch(() => {});
   useEffect(() => {
     refreshProfiles();
-    api.scenarios().then(setScenarios).catch(() => {});
     api.faq().then(setFaq).catch(() => {});
   }, []);
 
@@ -81,15 +79,6 @@ export function Arena({ active }: { active: boolean }) {
     resetThread();
     setOrderId(undefined);
     await loadProfile(id);
-  }
-
-  async function pickScenario(s: Scenario) {
-    resetThread();
-    setChannel(s.channel);
-    setOrderId(s.orderId ?? undefined);
-    setDraft(s.suggestedMessage);
-    setMode('chat'); // scenarios exercise the chat agent directly
-    await loadProfile(s.customerId);
   }
 
   async function createProfile(name: string, area: string) {
@@ -142,11 +131,9 @@ export function Arena({ active }: { active: boolean }) {
     <div className="grid h-full grid-cols-[300px_1fr_330px] max-lg:grid-cols-1 max-lg:overflow-y-auto">
       <aside className="border-r border-neutral-200 bg-white max-lg:border-b">
         <ProfilePanel
-          scenarios={scenarios}
           profiles={profiles}
           selectedId={profileId}
           detail={detail}
-          onPickScenario={pickScenario}
           onPickProfile={pickProfile}
           onCreateProfile={createProfile}
           onCreateOrder={createOrder}

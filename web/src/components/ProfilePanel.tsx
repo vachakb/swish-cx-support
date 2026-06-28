@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Customer, Order, Scenario, Wallet } from '../types';
+import type { Customer, Order, Wallet } from '../types';
 import { inr } from '../util';
 
 export type OrderPreset = 'stuck' | 'healthy' | 'delivered';
@@ -11,17 +11,15 @@ export interface ProfileDetail {
 }
 
 interface Props {
-  scenarios: Scenario[];
   profiles: Customer[];
   selectedId?: string;
   detail: ProfileDetail | null;
-  onPickScenario: (s: Scenario) => void;
   onPickProfile: (id: string) => void;
   onCreateProfile: (name: string, area: string) => void;
   onCreateOrder: (preset: OrderPreset) => void;
 }
 
-export function ProfilePanel({ scenarios, profiles, selectedId, detail, onPickScenario, onPickProfile, onCreateProfile, onCreateOrder }: Props) {
+export function ProfilePanel({ profiles, selectedId, detail, onPickProfile, onCreateProfile, onCreateOrder }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
   const [area, setArea] = useState('HSR Layout');
@@ -35,18 +33,6 @@ export function ProfilePanel({ scenarios, profiles, selectedId, detail, onPickSc
 
   return (
     <div className="flex h-full flex-col gap-4 overflow-y-auto p-4">
-      <section>
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-400">Scenarios</h3>
-        <div className="space-y-2">
-          {scenarios.map((s) => (
-            <button key={s.id} onClick={() => onPickScenario(s)} className="block w-full rounded-lg border border-neutral-200 bg-white p-2.5 text-left hover:border-swish-200 hover:bg-swish-50">
-              <div className="text-sm font-medium text-neutral-800">{s.title}</div>
-              <div className="mt-0.5 line-clamp-2 text-xs text-neutral-500">{s.description}</div>
-            </button>
-          ))}
-        </div>
-      </section>
-
       <section>
         <div className="mb-2 flex items-center justify-between">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Profiles</h3>
