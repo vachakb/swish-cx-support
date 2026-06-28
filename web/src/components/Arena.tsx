@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
 import { api } from '../api';
 import { ensureNotifyPermission, notify } from '../notify';
-import type { Customer, FaqCategory, Message, Trace } from '../types';
+import type { Customer, Message, Trace } from '../types';
 import { Chat } from './Chat';
-import { Faq } from './Faq';
 import { ProfilePanel } from './ProfilePanel';
 import type { OrderPreset, ProfileDetail } from './ProfilePanel';
 import { TracePanel } from './TracePanel';
@@ -17,11 +15,11 @@ const ORDER_PRESETS: Record<OrderPreset, unknown> = {
   delivered: { status: 'delivered', promisedInMin: -50, items: [{ name: 'Filter Coffee', quantity: 1, unitPrice: 4000 }, { name: 'Masala Dosa', quantity: 1, unitPrice: 12000 }] },
 };
 
-export function Arena({ active }: { active: boolean }) {
+// A channel playground: act as a profile and chat with the engine over a fixed channel (web or whatsapp).
+export function Arena({ channel, active }: { channel: 'web' | 'whatsapp'; active: boolean }) {
   const [profiles, setProfiles] = useState<Customer[]>([]);
   const [profileId, setProfileId] = useState<string>();
   const [detail, setDetail] = useState<ProfileDetail | null>(null);
-  const [channel, setChannel] = useState<'web' | 'whatsapp'>('web');
   const [orderId, setOrderId] = useState<string>();
   const [conversationId, setConversationId] = useState<string>();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -29,17 +27,14 @@ export function Arena({ active }: { active: boolean }) {
   const [status, setStatus] = useState<string>();
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
-  const [mode, setMode] = useState<'faq' | 'chat'>('faq'); // FAQ-first: self-serve, then chat
-  const [faq, setFaq] = useState<FaqCategory[]>([]);
   const seenAgent = useRef<Set<string>>(new Set());
 
   const refreshProfiles = () => api.profiles().then(setProfiles).catch(() => {});
   useEffect(() => {
     refreshProfiles();
-    api.faq().then(setFaq).catch(() => {});
   }, []);
 
-  // Poll the open conversation for human (agent) replies; surface them — and notify if you've left the chat.
+  // Poll the open conversation for human (agent) replies; surface them — and notify if you've left.
   useEffect(() => {
     if (!conversationId) return;
     const tick = async () => {
@@ -130,46 +125,20 @@ export function Arena({ active }: { active: boolean }) {
   return (
     <div className="grid h-full grid-cols-[300px_1fr_330px] max-lg:grid-cols-1 max-lg:overflow-y-auto">
       <aside className="border-r border-neutral-200 bg-white max-lg:border-b">
-        <ProfilePanel
-          profiles={profiles}
-          selectedId={profileId}
-          detail={detail}
-          onPickProfile={pickProfile}
-          onCreateProfile={createProfile}
-          onCreateOrder={createOrder}
-        />
+        <ProfilePanel profiles={profiles} selectedId={profileId} detail={detail} onPickProfile={pickProfile} onCreateProfile={createProfile} onCreateOrder={createOrder} />
       </aside>
       <section className="flex min-h-0 flex-col max-lg:h-[70vh]">
         <div className="flex items-center justify-between border-b border-neutral-200 bg-white px-4 py-2">
-          <div className="text-sm text-neutral-600">{detail ? <>Acting as <span className="font-medium text-neutral-800">{detail.customer.name}</span></> : 'Pick a profile or scenario'}</div>
-          <div className="flex items-center gap-2 text-xs">
-            <div className="flex gap-1">
-              <ChannelBtn active={mode === 'faq'} onClick={() => setMode('faq')}>Help</ChannelBtn>
-              <ChannelBtn active={mode === 'chat'} onClick={() => setMode('chat')}>Chat</ChannelBtn>
-            </div>
-            {mode === 'chat' && (
-              <div className="flex gap-1 border-l border-neutral-200 pl-2">
-                <ChannelBtn active={channel === 'web'} onClick={() => { setChannel('web'); resetThread(); }}>Web</ChannelBtn>
-                <ChannelBtn active={channel === 'whatsapp'} onClick={() => { setChannel('whatsapp'); resetThread(); }}>WhatsApp</ChannelBtn>
-              </div>
-            )}
-          </div>
+          <div className="text-sm text-neutral-600">{detail ? <>Acting as <span className="font-medium text-neutral-800">{detail.customer.name}</span></> : 'Pick a profile to start'}</div>
+          <div className="text-xs text-neutral-400">{channel === 'whatsapp' ? 'WhatsApp channel' : 'In-app chat'}</div>
         </div>
         <div className="min-h-0 flex-1">
-          {mode === 'faq' ? <Faq categories={faq} onNeedChat={() => setMode('chat')} /> : <Chat messages={messages} sending={sending} channel={channel} draft={draft} onSend={send} />}
+          <Chat messages={messages} sending={sending} channel={channel} draft={draft} onSend={send} />
         </div>
       </section>
       <aside className="border-l border-neutral-200 max-lg:border-t">
         <TracePanel trace={trace} status={status} />
       </aside>
     </div>
-  );
-}
-
-function ChannelBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
-  return (
-    <button onClick={onClick} className={`rounded px-2 py-1 ${active ? 'bg-swish-100 text-swish-700' : 'text-neutral-500 hover:bg-neutral-100'}`}>
-      {children}
-    </button>
   );
 }

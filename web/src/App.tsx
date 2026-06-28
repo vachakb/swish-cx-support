@@ -1,12 +1,21 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
+import { api } from './api';
 import { Arena } from './components/Arena';
+import { Faq } from './components/Faq';
 import { Inbox } from './components/Inbox';
+import type { FaqCategory } from './types';
 
-type View = 'arena' | 'inbox';
+type View = 'help' | 'arena' | 'whatsapp' | 'inbox';
 
 export default function App() {
-  const [view, setView] = useState<View>('arena');
+  const [view, setView] = useState<View>('help');
+  const [faq, setFaq] = useState<FaqCategory[]>([]);
+
+  useEffect(() => {
+    api.faq().then(setFaq).catch(() => {});
+  }, []);
+
   return (
     <div className="flex h-full flex-col">
       <header className="flex items-center justify-between border-b border-neutral-200 bg-white px-5 py-2.5">
@@ -18,14 +27,24 @@ export default function App() {
           </div>
         </div>
         <nav className="flex gap-1 text-sm">
+          <Tab active={view === 'help'} onClick={() => setView('help')}>Help</Tab>
           <Tab active={view === 'arena'} onClick={() => setView('arena')}>Play Arena</Tab>
+          <Tab active={view === 'whatsapp'} onClick={() => setView('whatsapp')}>WhatsApp</Tab>
           <Tab active={view === 'inbox'} onClick={() => setView('inbox')}>Shared Inbox</Tab>
         </nav>
       </header>
-      {/* Both views stay mounted so the arena keeps polling and can notify while you're in the inbox. */}
+      {/* Arena + WhatsApp stay mounted so they keep polling and can notify while you're elsewhere. */}
       <main className="min-h-0 flex-1">
+        <div className={view === 'help' ? 'h-full bg-neutral-50' : 'hidden'}>
+          <div className="mx-auto h-full max-w-2xl bg-white">
+            <Faq categories={faq} onNeedChat={() => setView('arena')} />
+          </div>
+        </div>
         <div className={view === 'arena' ? 'h-full' : 'hidden'}>
-          <Arena active={view === 'arena'} />
+          <Arena channel="web" active={view === 'arena'} />
+        </div>
+        <div className={view === 'whatsapp' ? 'h-full' : 'hidden'}>
+          <Arena channel="whatsapp" active={view === 'whatsapp'} />
         </div>
         <div className={view === 'inbox' ? 'h-full' : 'hidden'}>
           <Inbox active={view === 'inbox'} />
