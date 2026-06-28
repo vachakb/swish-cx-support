@@ -11,7 +11,7 @@ const CANCELLABLE = new Set(['placed', 'preparing']);
 
 function detectIssue(text: string): string {
   if (/spill|spilt|leak|soaked/i.test(text)) return 'spillage';
-  if (/missing|didn'?t (get|receive)|only got|short/i.test(text)) return 'missing item';
+  if (/missing|didn'?t (get|receive)|only (got|received)|received only|short/i.test(text)) return 'missing item';
   if (/wrong (order|item)|incorrect|not what i ordered/i.test(text)) return 'wrong item';
   if (/damaged|broken|crushed|smashed/i.test(text)) return 'damaged item';
   return 'order issue';

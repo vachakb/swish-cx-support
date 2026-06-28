@@ -163,6 +163,19 @@ This split *is* the senior judgment: empirical where it's decision-relevant and 
 
 ---
 
+## Bake-off results — routing (measured)
+Run via `npm run bakeoff` over 15 labeled cases (mock provider, deterministic):
+
+| strategy | accuracy | avg latency |
+|---|---|---|
+| rules-only | 67% | 0.00 ms |
+| llm-only | 100% | 0.07 ms |
+| **hybrid** | **100%** | **0.00 ms** |
+
+Rules cover **9/15 (60%)** of cases on the instant path. **Takeaway: hybrid gets LLM-level accuracy at rule-level latency** — deterministic rules short-circuit the common/critical intents (zero model latency, and money-path intents never ride on a probabilistic classifier), while the model only handles the ambiguous tail. rules-only misses the greeting/FAQ tail it has no keywords for. With a real Gemini key, llm-only carries real network latency + token cost while hybrid keeps most traffic on the free instant path, so the gap widens in hybrid's favour. This is the evidence behind decision 2. *(The harness also surfaced a real coverage gap during the run — an uncaught "only received" missing-item phrasing — which we then fixed; that's the harness doing its job.)*
+
+---
+
 ## Resolved (from Vacha's requirements, 2026-06-28)
 - **MVP surface** → engine + Swish-styled **responsive chat UI** + **WhatsApp simulator** + **play arena** + shared-inbox/escalation view.
 - **LLM provider & runnability** → Claude (vision-capable) behind a provider interface, **deterministic mock fallback so it runs key-free**; real key unlocks full power. *(Confirm if Vacha has a key.)*
