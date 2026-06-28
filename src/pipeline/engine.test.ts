@@ -56,4 +56,23 @@ describe('pipeline runTurn (mock LLM)', () => {
     expect(r.intent).toBe('greeting');
     expect(r.status).toBe('resolved');
   });
+
+  it('does NOT parrot a stuck ETA — it apologizes, compensates, and escalates', async () => {
+    const r = await runTurn({ channel: 'web', customerId: 'pc_trust', orderId: 'po_stuck', text: 'where is my order?? still says 3 min' }, deps);
+    expect(r.intent).toBe('order_status');
+    expect(r.status).toBe('escalated');
+    expect(r.reply).not.toMatch(/\b3 min\b/);
+    expect(r.reply).toMatch(/sorry|past our/i);
+    expect(r.action?.type).toBe('credit'); // proactive goodwill
+  });
+
+  it('uses a photo to corroborate a claim and auto-resolves', async () => {
+    const r = await runTurn(
+      { channel: 'web', customerId: 'pc_trust', orderId: 'po_img', text: 'the lid came off and it spilled', image: { mimeType: 'image/jpeg', dataBase64: 'aGVsbG8gc3dpc2g=' } },
+      deps,
+    );
+    expect(r.intent).toBe('order_issue');
+    expect(r.status).toBe('resolved');
+    expect(r.action?.type).toBe('credit');
+  });
 });

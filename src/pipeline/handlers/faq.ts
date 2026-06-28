@@ -9,6 +9,12 @@ const KB = [
     answer:
       "Swish referrals are simple: share your code, and when a friend places their first order and it's delivered, you both get ₹50 in Swish credit — added to your balance automatically.",
   },
+  {
+    id: 'refund_policy',
+    re: /(refund policy|how.*refund|when.*refund|money back|how long.*refund)/i,
+    answer:
+      "If something's wrong with an order I can usually fix it on the spot — either instant Swish credit or a refund to your original payment method. Card/UPI refunds typically land in 3-5 business days; Swish credit is instant.",
+  },
 ];
 
 const SERVICEABILITY = /serviceable|deliver(y)? to|available in|do you (deliver|serve)|in my area|not serviceable/i;

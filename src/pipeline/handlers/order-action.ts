@@ -4,6 +4,7 @@ import { computeRiskSignals } from '../../policy/signals';
 import type { ActionRequest } from '../../providers/types';
 import type { Order } from '../../repositories';
 import type { Handler, HandlerDeps, HandlerResult, TurnContext } from '../types';
+import { assessImage } from '../image';
 import { pickOrderId } from './util';
 
 const CANCELLABLE = new Set(['placed', 'preparing']);
@@ -48,7 +49,17 @@ async function handleCancel(ctx: TurnContext, deps: HandlerDeps, order: Order): 
 async function handleIssue(ctx: TurnContext, deps: HandlerDeps, order: Order): Promise<HandlerResult> {
   const issue = detectIssue(ctx.input.text);
   const amount = order.subtotal;
-  const corroborated = order.status === 'delivered';
+  let corroborated = order.status === 'delivered';
+  let imageDuplicate = false;
+
+  // If they sent a photo, score it and check it isn't reused from another ticket.
+  if (ctx.input.image) {
+    const assessment = await assessImage(deps.llm, ctx.conversation.id, ctx.input.image, ctx.input.text);
+    deps.tracer.note('image', { duplicate: assessment.duplicate, issueType: assessment.score.issueType, severity: assessment.score.severity });
+    imageDuplicate = assessment.duplicate;
+    corroborated = corroborated && assessment.score.issueType !== 'none' && assessment.score.issueType !== 'unclear' && assessment.score.confidence >= 0.5;
+  }
+
   const signals = await computeRiskSignals(order.customerId, deps.providers);
 
   const action: ActionRequest = {
@@ -60,7 +71,7 @@ async function handleIssue(ctx: TurnContext, deps: HandlerDeps, order: Order): P
     reason: issue,
     idempotencyKey: `${ctx.conversation.id}:credit:${order.id}`,
   };
-  const decision = await decideClaim({ action, signals, corroborated, imageDuplicate: false });
+  const decision = await decideClaim({ action, signals, corroborated, imageDuplicate });
   deps.tracer.note('policy', { outcome: decision.outcome, reasons: decision.reasons });
 
   if (decision.outcome === 'auto_approve') {

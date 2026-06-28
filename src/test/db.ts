@@ -38,9 +38,13 @@ export async function seedPipelineFixture(): Promise<void> {
     { id: 'po_active', customerId: 'pc_trust', status: 'dispatched', placedAt: new Date(now - 240_000), promisedBy: new Date(now + 360_000), podId: 'p1', riderId: 'r1', addressArea: 'HSR Layout', subtotal: 22000, total: 22000, paymentMethod: 'upi' },
     { id: 'po_delivered', customerId: 'pc_trust', status: 'delivered', placedAt: new Date(now - 3_600_000), promisedBy: new Date(now - 3_000_000), deliveredAt: new Date(now - 3_000_000), podId: 'p1', addressArea: 'HSR Layout', subtotal: 20000, total: 20000, paymentMethod: 'upi' },
     { id: 'po_fraud_delivered', customerId: 'pc_fraud', status: 'delivered', placedAt: new Date(now - 3_600_000), promisedBy: new Date(now - 3_000_000), deliveredAt: new Date(now - 3_000_000), podId: 'p2', addressArea: 'Indiranagar', subtotal: 28000, total: 28000, paymentMethod: 'upi' },
+    { id: 'po_img', customerId: 'pc_trust', status: 'delivered', placedAt: new Date(now - 1_800_000), promisedBy: new Date(now - 1_200_000), deliveredAt: new Date(now - 1_200_000), podId: 'p1', addressArea: 'HSR Layout', subtotal: 16000, total: 16000, paymentMethod: 'upi' },
+    { id: 'po_stuck', customerId: 'pc_trust', status: 'arriving', placedAt: new Date(now - 22 * 60_000), promisedBy: new Date(now - 12 * 60_000), podId: 'p1', riderId: 'r2', addressArea: 'HSR Layout', subtotal: 26000, total: 26000, paymentMethod: 'upi' },
   ]);
   await db.insert(orderTracking).values([
     { orderId: 'po_active', etaSeconds: 300, etaLastComputedAt: new Date(now - 15_000), riderLat: 12.9, riderLng: 77.6, riderLastGpsAt: new Date(now - 8_000), distanceRemainingM: 800, stage: 'enroute', stateLastTransitionAt: new Date(now - 90_000) },
+    // Stuck: ETA frozen at 3 min, computed + GPS 20 min ago, promise breached 12 min ago.
+    { orderId: 'po_stuck', etaSeconds: 180, etaLastComputedAt: new Date(now - 20 * 60_000), riderLat: 12.91, riderLng: 77.63, riderLastGpsAt: new Date(now - 20 * 60_000), distanceRemainingM: 1200, stage: 'enroute', stateLastTransitionAt: new Date(now - 20 * 60_000) },
   ]);
   await db.insert(conversations).values([{ id: 'cv_fraud_hist', customerId: 'pc_fraud', channel: 'web', status: 'resolved' }]);
   await db.insert(resolutions).values([
