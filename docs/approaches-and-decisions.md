@@ -141,6 +141,26 @@ Every support contact is one of two kinds, split by **what knowledge it needs** 
 ## 22. Build-and-benchmark the contested choices (req)
 **Decision:** a small **bake-off harness** (reuses the eval rig) measuring **latency + accuracy** on a labeled scenario set, for decisions where the answer isn't obvious. **Primary contest: routing** — rules-only vs LLM-only vs hybrid vs embeddings-classifier. **Secondary (time-permitting):** FAQ retrieval (keyword vs embeddings) and responder model-tier (small vs large). Output a comparison table; pick winners by accuracy/latency/cost; record in this doc. 🟢
 
+## 23. Notification service (req: show agent replies when the user leaves the chat)
+**Why it matters:** support is async — proactive ETA alerts, a human's reply post-escalation, or a delayed resolution can land *after* the user navigated away. Silence here *is* the "unreachable support" pain.
+**Options:** (a) none (user must stay on screen); (b) client polling; (c) **server-push + presence-aware notification service**.
+- **Recommendation (c):** a `NotificationService` abstraction with pluggable transports. *Prototype:* server pushes replies over SSE/WebSocket; the client uses the **Page Visibility API** to detect the chat isn't focused → raises a **Web Notification** (with permission) + an in-app unread badge/toast; on WhatsApp the outbound message itself is the notification. *Production (same interface):* Web Push (VAPID), **FCM/APNs** for the RN app, WhatsApp. Triggers: proactive updates, escalated human replies, async resolutions. 🟢
+
+## 24. UI tech — pure React web (decided with Vacha)
+Pure React (web) SPA: chat + a phone-framed in-app view + the WhatsApp surface + shared inbox + play arena, all in the browser. The engine is client-agnostic (REST/JSON), so the production RN chat is a thin client over the same API + message contract. An RN-Web chat widget was offered for extra "drops-into-your-app" credibility but declined to keep it lightweight. 🟢
+
+## Methodology — how this doc proves its claims (answers "should we actually test the approaches?")
+Two classes of decision, handled differently — deliberately:
+- **Empirically benchmarked** (several viable options; the winner depends on measurable tradeoffs): **routing** (rules vs LLM vs hybrid vs embeddings), **retrieval** (keyword vs embeddings), **responder model tier** (flash-lite vs flash). Each is built behind a shared interface and run through the **bake-off harness** (§22) over a labeled scenario set → we report **accuracy / latency / cost** and pick. These numbers go in the deliverable as *measured fact*, not assertion.
+- **Settled by evidence + first principles** (building variants would be wasteful, or it's a safety/correctness invariant): e.g. "the LLM never holds refund authority," "no fine-tuning," "modular monolith over microservices." The doc gives the options + reasoned pros/cons + cites the research. Running an A/B to "prove" an LLM shouldn't issue refunds would be theatre.
+This split *is* the senior judgment: empirical where it's decision-relevant and cheap, reasoned-and-cited everywhere else — thorough without overengineering.
+
+## Refinements (v3)
+- **§10 (LLM):** target **Gemini 3.x** — `gemini-3.1-flash-lite` (routing/sentiment), `gemini-3.5-flash` (vision/balanced), Gemini 3 Pro (reasoning). **Gemini 2.5 was deprecated 2026-06-17.** Model ids live in config; re-verify against ai.google.dev before relying.
+- **§5/§21 (policy engine):** `@swishhq/rule-engine` is **not published to npm** (public repo, unpublished). We build on its upstream **`json-rules-engine`** (same JSON rule shape) behind our own interface, so Swish swaps in their fork with one line.
+- **§13 (WhatsApp):** *not a fake* — the adapter implements the **real WhatsApp Cloud API contract** (webhook in, Graph API send out). The built-in simulator drives **real webhook-shaped payloads through the real code path**; an **optional real-Meta mode** (Meta app creds + a tunnel) sends actual WhatsApp messages. Same honest pattern as the Gemini mock. Exact contract **verified against Meta docs at build time**.
+- **Rigor principle (global):** everything we build or cite is verified against current official docs — no invented APIs / model-ids / behaviors; uncertainty is flagged. A prototype, built with production principles.
+
 ---
 
 ## Resolved (from Vacha's requirements, 2026-06-28)
@@ -154,3 +174,4 @@ Every support contact is one of two kinds, split by **what knowledge it needs** 
 ## Decision changelog
 - _(v1)_ Initial framework from competitor + Swish research. Decisions 1,2,4,5,6,8,9,10,11 recommended; 3,7,12 leaning/open; 4 open questions raised.
 - _(v2)_ Folded in Vacha's expanded requirements + ETA root-cause research + confirmed Swish stack. Added decisions 13–22 (channels/shared-inbox, sentiment, persistence/schema, fallbacks, I/O guardrails, image evidence, **ETA Truth ★**, scalability, plug-and-play via `@swishhq/rule-engine`, bake-off). Resolved the 4 open questions. Next: scaffold + build.
+- _(v3)_ Added decisions 23 (notification service) + 24 (UI = pure React web) + the empirical-vs-reasoned **methodology** note. Refinements: Gemini **3.x** (2.5 deprecated 2026-06-17), `json-rules-engine` (since `@swishhq/rule-engine` is unpublished), WhatsApp **real Cloud API contract** + simulator + optional real mode, global **verify-don't-assume** rigor principle. Wrote `CLAUDE.md` (root + `web/`) from version-verified stack research; hardened tsconfig (`verbatimModuleSyntax`, `erasableSyntaxOnly`).
