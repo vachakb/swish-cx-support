@@ -1,13 +1,14 @@
 import { serve } from '@hono/node-server';
-import { Hono } from 'hono';
+import { serveStatic } from '@hono/node-server/serve-static';
 import { config } from './config';
+import { app } from './server/app';
 
-const app = new Hono();
-
-app.get('/api/health', (c) =>
-  c.json({ status: 'ok', service: 'swish-support', provider: config.llmProvider }),
-);
+// In production, serve the built web app (with SPA fallback) after the API routes.
+if (config.isProd) {
+  app.use('/*', serveStatic({ root: './web/dist' }));
+  app.get('/*', serveStatic({ path: './web/dist/index.html' }));
+}
 
 serve({ fetch: app.fetch, port: config.port }, (info) => {
-  console.log(`Swish Support API → http://localhost:${info.port}  [llm: ${config.llmProvider}]`);
+  console.log(`Swish Support → http://localhost:${info.port}  [llm: ${config.llmProvider}, whatsapp: ${config.whatsapp.live ? 'live' : 'sim'}]`);
 });

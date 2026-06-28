@@ -21,4 +21,12 @@ export const config = {
     vision: process.env.GEMINI_MODEL_VISION ?? 'gemini-3.5-flash',
   },
   dbUrl: process.env.DATABASE_URL ?? 'file:./data/swish.db',
+  // WhatsApp Cloud API. With access token + phone-number id set, sends are real; otherwise sim mode.
+  whatsapp: {
+    verifyToken: process.env.WHATSAPP_VERIFY_TOKEN ?? 'swish-verify',
+    accessToken: process.env.WHATSAPP_ACCESS_TOKEN ?? '',
+    phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID ?? '',
+    graphBase: process.env.WHATSAPP_GRAPH_BASE ?? 'https://graph.facebook.com/v21.0',
+    live: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID),
+  },
 } as const;
