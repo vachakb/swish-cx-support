@@ -1,21 +1,7 @@
 import { formatINR } from '../../core/money';
+import { searchFaq } from '../../faq/content';
 import * as repo from '../../repositories';
 import type { Handler, HandlerDeps, HandlerResult, TurnContext } from '../types';
-
-const KB = [
-  {
-    id: 'referral_how',
-    re: /(how.*(referr?al|refer)|referr?al.*(work|program)|refer a friend)/i,
-    answer:
-      "Swish referrals are simple: share your code, and when a friend places their first order and it's delivered, you both get ₹50 in Swish credit — added to your balance automatically.",
-  },
-  {
-    id: 'refund_policy',
-    re: /(refund policy|how.*refund|when.*refund|money back|how long.*refund)/i,
-    answer:
-      "If something's wrong with an order I can usually fix it on the spot — either instant Swish credit or a refund to your original payment method. Card/UPI refunds typically land in 3-5 business days; Swish credit is instant.",
-  },
-];
 
 const SERVICEABILITY = /serviceable|deliver(y)? to|available in|do you (deliver|serve)|in my area|not serviceable/i;
 
@@ -81,8 +67,8 @@ export const faqHandler: Handler = {
     if (ctx.route.intent === 'referral_status') return referralStatus(ctx, deps);
     const text = ctx.input.text;
     if (SERVICEABILITY.test(text)) return serviceability(text, deps);
-    const kb = KB.find((k) => k.re.test(text));
-    if (kb) return { reply: kb.answer, status: 'resolved', data: { kind: 'faq', id: kb.id } };
+    const article = searchFaq(text); // same content as the self-serve Help module
+    if (article) return { reply: article.answer, status: 'resolved', data: { kind: 'faq', id: article.id } };
     return { reply: 'Happy to help! Is this about referrals, serviceable areas, cancellations, or an order?', status: 'awaiting_user' };
   },
 };

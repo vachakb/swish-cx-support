@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { api } from '../api';
 import { ensureNotifyPermission, notify } from '../notify';
-import type { Customer, Message, Scenario, Trace } from '../types';
+import type { Customer, FaqCategory, Message, Scenario, Trace } from '../types';
 import { Chat } from './Chat';
+import { Faq } from './Faq';
 import { ProfilePanel } from './ProfilePanel';
 import type { OrderPreset, ProfileDetail } from './ProfilePanel';
 import { TracePanel } from './TracePanel';
@@ -29,12 +30,15 @@ export function Arena({ active }: { active: boolean }) {
   const [status, setStatus] = useState<string>();
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  const [mode, setMode] = useState<'faq' | 'chat'>('faq'); // FAQ-first: self-serve, then chat
+  const [faq, setFaq] = useState<FaqCategory[]>([]);
   const seenAgent = useRef<Set<string>>(new Set());
 
   const refreshProfiles = () => api.profiles().then(setProfiles).catch(() => {});
   useEffect(() => {
     refreshProfiles();
     api.scenarios().then(setScenarios).catch(() => {});
+    api.faq().then(setFaq).catch(() => {});
   }, []);
 
   // Poll the open conversation for human (agent) replies; surface them — and notify if you've left the chat.
@@ -84,6 +88,7 @@ export function Arena({ active }: { active: boolean }) {
     setChannel(s.channel);
     setOrderId(s.orderId ?? undefined);
     setDraft(s.suggestedMessage);
+    setMode('chat'); // scenarios exercise the chat agent directly
     await loadProfile(s.customerId);
   }
 
@@ -150,13 +155,21 @@ export function Arena({ active }: { active: boolean }) {
       <section className="flex min-h-0 flex-col max-lg:h-[70vh]">
         <div className="flex items-center justify-between border-b border-neutral-200 bg-white px-4 py-2">
           <div className="text-sm text-neutral-600">{detail ? <>Acting as <span className="font-medium text-neutral-800">{detail.customer.name}</span></> : 'Pick a profile or scenario'}</div>
-          <div className="flex gap-1 text-xs">
-            <ChannelBtn active={channel === 'web'} onClick={() => { setChannel('web'); resetThread(); }}>Web</ChannelBtn>
-            <ChannelBtn active={channel === 'whatsapp'} onClick={() => { setChannel('whatsapp'); resetThread(); }}>WhatsApp</ChannelBtn>
+          <div className="flex items-center gap-2 text-xs">
+            <div className="flex gap-1">
+              <ChannelBtn active={mode === 'faq'} onClick={() => setMode('faq')}>Help</ChannelBtn>
+              <ChannelBtn active={mode === 'chat'} onClick={() => setMode('chat')}>Chat</ChannelBtn>
+            </div>
+            {mode === 'chat' && (
+              <div className="flex gap-1 border-l border-neutral-200 pl-2">
+                <ChannelBtn active={channel === 'web'} onClick={() => { setChannel('web'); resetThread(); }}>Web</ChannelBtn>
+                <ChannelBtn active={channel === 'whatsapp'} onClick={() => { setChannel('whatsapp'); resetThread(); }}>WhatsApp</ChannelBtn>
+              </div>
+            )}
           </div>
         </div>
         <div className="min-h-0 flex-1">
-          <Chat messages={messages} sending={sending} channel={channel} draft={draft} onSend={send} />
+          {mode === 'faq' ? <Faq categories={faq} onNeedChat={() => setMode('chat')} /> : <Chat messages={messages} sending={sending} channel={channel} draft={draft} onSend={send} />}
         </div>
       </section>
       <aside className="border-l border-neutral-200 max-lg:border-t">

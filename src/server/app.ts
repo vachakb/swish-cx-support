@@ -4,6 +4,7 @@ import { engine } from '../app';
 import { parseInbound, sendMessage, verifyWebhook } from '../channels/whatsapp';
 import { config } from '../config';
 import { channels, conversationStatuses, orderStatuses } from '../db/schema';
+import { faqCategories } from '../faq/content';
 import * as repo from '../repositories';
 
 export const app = new Hono();
@@ -57,6 +58,7 @@ app.post('/api/conversations/:id/agent-reply', async (c) => {
 });
 
 // --- Arena: scenarios + profiles + orders ---
+app.get('/api/faq', (c) => c.json(faqCategories));
 app.get('/api/scenarios', async (c) => c.json(await repo.listScenarios()));
 app.get('/api/profiles', async (c) => c.json(await repo.listCustomers()));
 

@@ -1,4 +1,4 @@
-import type { ChatResponse, Conversation, Customer, Message, Order, Scenario, Trace, Wallet } from './types';
+import type { ChatResponse, Conversation, Customer, FaqCategory, Message, Order, Scenario, Trace, Wallet } from './types';
 
 async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init);
@@ -20,6 +20,7 @@ export interface ChatBody {
 
 export const api = {
   chat: (body: ChatBody) => postJson<ChatResponse>('/api/chat', body),
+  faq: () => jsonFetch<FaqCategory[]>('/api/faq'),
   scenarios: () => jsonFetch<Scenario[]>('/api/scenarios'),
   profiles: () => jsonFetch<Customer[]>('/api/profiles'),
   profile: (id: string) => jsonFetch<{ customer: Customer; wallet: Wallet | null; orders: Order[] }>(`/api/profiles/${id}`),

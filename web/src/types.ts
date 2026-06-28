@@ -76,6 +76,19 @@ export interface Message {
   payload?: Record<string, unknown> | null;
 }
 
+export interface FaqArticle {
+  id: string;
+  question: string;
+  answer: string;
+  tags: string[];
+}
+
+export interface FaqCategory {
+  id: string;
+  title: string;
+  articles: FaqArticle[];
+}
+
 export interface Conversation {
   id: string;
   channel: 'web' | 'whatsapp';
