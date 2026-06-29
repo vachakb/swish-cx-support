@@ -50,13 +50,14 @@ Every support contact is one of two kinds, split by **what knowledge it needs** 
 - **(a)** Pro: batteries included. Con: heavy dependency, indirection, less control over the money path; we'd fight the framework on guardrails.
 - **(b)** Pro: full control, transparent, easy to test/guardrail, matches Zepto's "constrained agent over deterministic state." Con: we write the orchestration ourselves (but it's small).
 - **(c)** Pro: maximally flexible. Con: least predictable — wrong tool for refunds/money; both blogs avoided open planning.
-- **Recommendation:** **(b)**. 🟢
+- **Recommendation:** **(b)** — hand-rolled handlers for orchestration. *Evolved (v4):* the order-issue handler is now a **constrained LLM resolution agent** (`pipeline/resolve.ts`) — it diagnoses, captures sentiment, gathers context only when it genuinely helps, and **offers the customer options** (re-send / Swish credit / refund) as tappable quick-replies rather than dictating a fix. It emits a flat structured proposal that the deterministic policy core still disposes; it never holds write authority. **Conversation continuity** pins a clarifying-question follow-up to the active resolution (a context-free "the strawberry one" won't get re-routed to order-status and lose the thread). 🟢
 
 ## 5. Action safety (refunds / cancels / credits / re-deliver)
 **Options:** (a) LLM directly calls the write API; (b) **LLM emits a structured proposal → deterministic policy engine validates → idempotent executor performs the action, re-validating live state**.
 - **(a)** Pro: simple. Con: unacceptable — a hallucination = real money lost; no audit trail; abuse-prone.
 - **(b)** Pro: LLM never holds write authority; deterministic eligibility + fraud checks; idempotent + auditable; matches both blogs' "action-signal / policy guardrail" pattern. Con: more layers.
 - **Recommendation:** **(b)** — non-negotiable. 🟢
+- **Money tiers (v4):** not all money is equal. Small goodwill **credits auto-resolve** within policy (fast, retention-positive, lower stakes). **Refunds (cash back to the card) always require a human's approval** — the agent *requests* a refund, it never executes one. **Food-safety claims** (foreign object/contamination/illness) **always** route to manual review with priority. And **no money moves on a serious physical claim without photo evidence**. So it's "LLM proposes, deterministic core disposes" — and for refunds + food safety, *a human* disposes. This directly fixed the worst early bug (auto-refunding an unverified "there's a bug in my food").
 
 ## 6. Refund / fraud decisioning (the part the blogs hid — our differentiator)
 **Options:** (a) trust the LLM's judgment; (b) **deterministic, config-driven rules engine over risk signals**.
@@ -64,6 +65,7 @@ Every support contact is one of two kinds, split by **what knowledge it needs** 
 - **(a)** Pro: handles nuance. Con: inconsistent, exploitable, not auditable, regulatory risk.
 - **(b)** Pro: consistent, auditable, tunable, abuse-resistant; mirrors Swish's own JSON-rules-engine culture. Con: we must define + tune thresholds (instrument and iterate).
 - **Recommendation:** **(b)** — auto-approve when *all* low-risk conditions hold (Swish's vertical integration gives strong corroboration), else add friction or escalate. Every threshold lives in config. 🟢
+- **Tuned to *genuine abuse*, not normal usage (v4):** velocity ≥ 6 claims/7d and lifetime refund-ratio > 1.0 (refunding ~every order) — an unlucky week shouldn't trip a guard. Combined with the money tiers (§5), a loyal customer with a real problem gets auto-resolved; only repeat-claimant patterns hit friction. (Early thresholds of 3/wk + 0.5 over-escalated on a single test profile — a real lesson in calibrating fraud signals against the demo's own behaviour.)
 
 ## 7. Evidence / image handling (spillage, missing, wrong item)
 **Options:** (a) ignore photos; (b) **vision model "image scorer" + horizontal integrity checks**; (c) require human for all photo claims.
@@ -78,6 +80,7 @@ Every support contact is one of two kinds, split by **what knowledge it needs** 
 ## 9. Conversation state / memory
 **Options:** (a) stateless; (b) **stateful sessions** (history + order context + prior actions), keyed by conversation id.
 - **Recommendation:** **(b)** — needed for "this is late again" / multi-turn; but volatile data is *always* re-fetched, never trusted from memory. 🟢
+- **v4:** the resolution agent reasons over a compact **user-memory snapshot** (`pipeline/memory.ts` — tenure, order count, prior resolutions, recent-claim rate, credit balance) plus the full thread, so it treats a loyal regular differently from a day-old account. **Continuity** keeps a follow-up in the active flow. And the *client* session (active tab + open conversation) persists in `localStorage`, so a page refresh lands you exactly where you were.
 
 ## 10. Escalation to human
 **Options:** (a) confidence-threshold only; (b) **multi-trigger gate**.
@@ -130,7 +133,9 @@ Every support contact is one of two kinds, split by **what knowledge it needs** 
 - **Recommendation:** **(c)** — accept one image on order-action claims; horizontal validation (perceptual-hash **cross-ticket dedupe** + tamper/validity + relevance) runs always; the freshness/damage score uses real Claude vision when a key is present, else a deterministic mock. Feeds the policy core. Keeps it real but not heavy. 🟢 *(supersedes the earlier open question on evidence depth)*
 
 ## 19. ETA Truth / staleness module ★ (req: fix the stuck-ETA experience)
-**Decision:** a first-class module (see `research.md` Part E). The order-info handler reasons over a **trust verdict** `{displayEta, isStale, isStuck, isBreached, confidence, recommendedAction}` derived from ETA metadata + deterministic gates — never the raw number. Low confidence → honest + proactive, never parrots. The arena seeds a stuck-ETA order to demo naïve-bot-vs-ours. 🟢
+**Decision:** a first-class module (`eta/truth.ts`; see `research.md` Part E). The order-info handler reasons over a **trust verdict** `{displayEta, freshEtaSeconds, isStale, isStuck, isBreached, confidence, recommendation}` derived from ETA metadata + deterministic gates — never the raw cached number.
+- **Always a FRESH number (v4):** it trusts the cached ETA only while it's genuinely fresh; once stale it **recomputes from the rider's live distance** (distance ÷ speed + a handoff buffer); if the rider data can't be trusted at all (stale ETA *and* dead GPS = "stuck") it quotes **nothing** rather than a stale guess.
+- **Honest when stuck → `investigate`, not auto-credit (v4):** the earlier design proactively credited ₹30 + escalated on a stuck delay — wrong ("it randomly credits the wallet as an apology"). Now a conversational **WISMO agent** (`pipeline/wismo.ts`), grounded *only* in the verdict, says plainly it can't give a reliable time, shares what it *does* know (rider's last-known distance, how late it is), and offers concrete next steps — it's **checking with the rider and the kitchen**, you can track live in-app, it'll update you. **A delay is never auto-compensated**; severe + unreliable tracking → escalate a human. The arena seeds a stuck-ETA order to demo naïve-bot-vs-ours. 🟢
 
 ## 20. Scalability posture (req: ready for 100k+ users, without over-building)
 **Decision:** demonstrate the *measures*, document the *path*. Stateless core (session/state behind a Redis-ready interface); **idempotent actions** with keys; **async escalation via a queue-ready event bus** (in-process now, swappable); rate-limiting + per-user concurrency; swappable provider adapters; tracing + metrics; no session affinity. A `docs` "path to 100k+" section names what we'd add (Redis, real queue, autoscaled stateless workers, read replicas) — *not* built for the prototype. 🟢
@@ -161,6 +166,13 @@ This split *is* the senior judgment: empirical where it's decision-relevant and 
 - **§13 (WhatsApp):** *not a fake* — the adapter implements the **real WhatsApp Cloud API contract** (real webhook verify-handshake + inbound-payload parsing, real Graph API send-message construction). The built-in simulator drives **real WABA-shaped payloads through the real code path** for the demo. Per Vacha: **we do NOT build the full live Meta app flow** — instead it's **production-ready with documented wire-ins** (Meta app creds, phone-number id, access + verify tokens, public webhook URL); drop those in and it's live. Contract **verified against Meta docs at build time**.
 - **Rigor principle (global):** everything we build or cite is verified against current official docs — no invented APIs / model-ids / behaviors; uncertainty is flagged. A prototype, built with production principles.
 
+## Refinements (v4) — agent intelligence
+- **Resolution agent + Gemini (§4/§8):** the order-issue path runs on the **smart tier with bounded thinking** (`thinkingBudget` ~512 — it reasons without stalling the chat); routing/sentiment stay thinking-off on flash-lite. Hard-won Gemini gotchas, all fixed: structured-output schemas must be **flat** (a nullable nested object gets rejected → the call throws → silent fallback escalation); the provider **retries transient 429/503/504 and falls back to the fast model** so a load spike doesn't break a chat.
+- **Consultative, not a fix-dispenser (§4):** the agent reflects back the problem, **offers tappable options** (resend / Swish credit / refund) and acts on the customer's choice rather than unilaterally deciding. Surfaced as quick-reply chips that continue the conversation.
+- **Guided status-aware intake (§16/§24):** chat opens with **option chips** (order → topic → sub-issue → affected items), mirroring Swish's Help flow; options differ by lifecycle (track/cancel while in-progress; refund/"something's wrong" once delivered). Added `refund_status` and a misconduct→human intent; generic chat first asks *which order*. The chips gather issue + items up front so the agent acts with full context. Works in the app **and** the WhatsApp surface (as WhatsApp interactive-list/button messages).
+- **Latency:** bounded thinking + routing quality terms via rules (no extra LLM hop) → ~3–4 s reasoning turns; happy-path WISMO/FAQ stay instant (templates). An animated typing indicator covers the wait.
+- **Demo shape:** collapsed the multi-profile arena to **one seeded customer** with a spread of orders (cleaner to evaluate); WhatsApp became a real **integration showcase** — a phone-framed thread driving the live webhook with the inbound Meta payload + outbound Graph API call shown — not a reskin.
+
 ---
 
 ## Bake-off results — routing (measured)
@@ -178,7 +190,7 @@ Rules cover **9/15 (60%)** of cases on the instant path. **Takeaway: hybrid gets
 
 ## Resolved (from Vacha's requirements, 2026-06-28)
 - **MVP surface** → engine + Swish-styled **responsive chat UI** + **WhatsApp simulator** + **play arena** + shared-inbox/escalation view.
-- **LLM provider & runnability** → Claude (vision-capable) behind a provider interface, **deterministic mock fallback so it runs key-free**; real key unlocks full power. *(Confirm if Vacha has a key.)*
+- **LLM provider & runnability** → **Gemini 3.x** (vision-capable) behind the `LlmProvider` interface, **deterministic mock fallback so it runs key-free**; Vacha's real key unlocks full power. Verified live end-to-end (routing, resolution agent, WISMO, vision).
 - **Evidence depth** → real vision + always-on integrity pipeline (decision 18).
 - **Multilingual** → design-ready (language signal + translate-shim); demo in English. 🟡 (low priority unless Vacha wants Hinglish demoed live)
 
@@ -188,3 +200,4 @@ Rules cover **9/15 (60%)** of cases on the instant path. **Takeaway: hybrid gets
 - _(v1)_ Initial framework from competitor + Swish research. Decisions 1,2,4,5,6,8,9,10,11 recommended; 3,7,12 leaning/open; 4 open questions raised.
 - _(v2)_ Folded in Vacha's expanded requirements + ETA root-cause research + confirmed Swish stack. Added decisions 13–22 (channels/shared-inbox, sentiment, persistence/schema, fallbacks, I/O guardrails, image evidence, **ETA Truth ★**, scalability, plug-and-play via `@swishhq/rule-engine`, bake-off). Resolved the 4 open questions. Next: scaffold + build.
 - _(v3)_ Added decisions 23 (notification service) + 24 (UI = pure React web) + the empirical-vs-reasoned **methodology** note. Refinements: Gemini **3.x** (2.5 deprecated 2026-06-17), `json-rules-engine` (since `@swishhq/rule-engine` is unpublished), WhatsApp **real Cloud API contract** + simulator + optional real mode, global **verify-don't-assume** rigor principle. Wrote `CLAUDE.md` (root + `web/`) from version-verified stack research; hardened tsconfig (`verbatimModuleSyntax`, `erasableSyntaxOnly`).
+- _(v4, 2026-06-29)_ **Agent-intelligence pass.** Order-issue handler → **consultative LLM resolution agent** (diagnose → offer options → act on the customer's choice), gated by the policy core; **money tiers** (credits auto; refunds + food-safety + unproven serious claims → human); fraud thresholds re-tuned to genuine-abuse levels; **conversation continuity** + **user-memory snapshot**; **ETA Truth** reworked to always-fresh + honest `investigate` (no random late-credit); **guided status-aware intake** + `refund_status`/misconduct intents; Gemini **thinking model** (bounded budget, flat schema, transient retry + model fallback); single-profile demo, client session persistence, typing indicator, full visual redesign. Verified live on Gemini; 31 tests green.
