@@ -66,13 +66,24 @@ function extractOrderRef(text: string): string | undefined {
   return text.match(ORDER_REF)?.[1];
 }
 
-// Hybrid: rules short-circuit the critical intents; a cheap model classifies the rest.
-export async function route(text: string, llm: LlmProvider, signal?: AbortSignal): Promise<RouteResult> {
+// The clarifying question we're awaiting an answer to — lets the classifier judge a reply in context.
+export interface PendingContext {
+  question: string;
+  intent: Intent;
+}
+
+// Hybrid: rules short-circuit the critical intents; a cheap model classifies the rest. When we're
+// mid-flow, the classifier is told what we just asked, so it can tell a continuation from a topic
+// switch ("midflow intent switching") rather than guessing from the message alone.
+export async function route(text: string, llm: LlmProvider, signal?: AbortSignal, pending?: PendingContext): Promise<RouteResult> {
   const ruled = ruleIntent(text);
   if (ruled) {
     return { intent: ruled, confidence: 0.95, sentiment: detectSentiment(text), language: detectLanguage(text), orderRef: extractOrderRef(text) };
   }
-  return llm.generateJson({ task: 'route', tier: 'fast', system: ROUTE_SYSTEM, prompt: text, schema: RouteSchema, signal });
+  const system = pending
+    ? `${ROUTE_SYSTEM}\nThe assistant just asked the customer: "${pending.question}". If their reply answers or continues that, return intent "${pending.intent}". If they've changed the subject, return the new intent that fits.`
+    : ROUTE_SYSTEM;
+  return llm.generateJson({ task: 'route', tier: 'fast', system, prompt: text, schema: RouteSchema, signal });
 }
 
 export { RouteSchema };

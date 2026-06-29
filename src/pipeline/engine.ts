@@ -10,9 +10,6 @@ import { detectLanguage, detectSentiment, route, ruleIntent } from './router';
 import { Tracer } from './tracer';
 import type { HandlerResult, Intent, RouteResult, TurnContext, TurnInput, TurnResult } from './types';
 
-// Mid-resolution, only these intents count as an explicit topic switch; everything else continues the flow.
-const OVERRIDE_INTENTS = new Set<Intent>(['human', 'cancel_order', 'closing']);
-
 export interface EngineDeps {
   llm: LlmProvider;
   providers: Providers;
@@ -47,28 +44,26 @@ export async function runTurn(input: TurnInput, deps: EngineDeps): Promise<TurnR
   tracer.note('llm', { provider: deps.llm.name });
 
   const history = await repo.listMessages(conversation.id);
-  // Continuity: if our last turn asked an order-issue clarifying question, keep a context-free
-  // follow-up (e.g. "strawberry cake") in that flow instead of dropping it to the generic fallback.
+  // Dialogue state for "midflow intent switching": a clarifying turn marks itself with kind:'clarify'
+  // and the flow it's awaiting. We hand that to the classifier so it can tell an answer to our question
+  // from a fresh topic — and fall back to the flow only when the reply carries no clear intent.
   const lastBot = [...history].reverse().find((m) => m.role === 'assistant');
-  // A clarifying turn marks itself with kind:'clarify' and (optionally) the intent to resume, so a
-  // context-free follow-up ("delhi hauz khas", "yes cancel it") stays in that flow instead of dropping
-  // to the generic fallback. Defaults to order_issue for the original resolution flow.
   const clarify = lastBot?.payload as { kind?: string; intent?: Intent } | null | undefined;
   const midResolution = clarify?.kind === 'clarify';
   const resumeIntent: Intent = clarify?.intent ?? 'order_issue';
+  const pending = midResolution ? { question: lastBot?.text ?? '', intent: resumeIntent } : undefined;
 
   let routed: RouteResult;
   try {
-    routed = await tracer.step('route', () => route(gate.text, deps.llm));
+    routed = await tracer.step('route', () => route(gate.text, deps.llm, undefined, pending));
   } catch {
     // LLM routing failed — fall back to rules (or 'unknown') so we still respond gracefully.
     routed = { intent: ruleIntent(gate.text) ?? 'unknown', confidence: 0.3, sentiment: detectSentiment(gate.text), language: detectLanguage(gate.text) };
   }
-  // While waiting on the answer to a clarifying question, keep the follow-up in the resolution flow —
-  // only an explicit switch (human / cancel / done) breaks out. A reply like "the rider never showed"
-  // must not get re-routed to order-status and lose the thread.
-  if (midResolution && !OVERRIDE_INTENTS.has(routed.intent)) {
-    if (routed.intent !== resumeIntent) tracer.note('continuity', { from: routed.intent, to: resumeIntent });
+  // Continue the pending flow only when the reply has no clear intent of its own (classifier returned
+  // 'unknown'); any clear, different intent is honoured as a topic switch — no hardcoded override list.
+  if (midResolution && routed.intent === 'unknown') {
+    tracer.note('continuity', { resumed: resumeIntent });
     routed = { ...routed, intent: resumeIntent };
   }
 
