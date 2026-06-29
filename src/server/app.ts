@@ -9,7 +9,7 @@ import { publishMessage, subscribeMessages } from '../notifications/bus';
 import * as repo from '../repositories';
 
 const REFUND_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
-const REFUND_PROCESSING_MS = 5 * 24 * 60 * 60 * 1000;
+const REFUND_PROCESSING_MS = 7 * 24 * 60 * 60 * 1000; // Swish ToS: refunds within 7 business days of confirmation
 
 export const app = new Hono();
 

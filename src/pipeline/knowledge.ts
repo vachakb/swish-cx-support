@@ -26,8 +26,8 @@ async function buildFacts(customerId: string | undefined, providers: Providers):
   const live = areas.filter((a) => a.serviceable).map((a) => a.area);
   const soon = areas.filter((a) => !a.serviceable).map((a) => `${a.area}${a.note ? ` (${a.note})` : ''}`);
   const lines = [
-    'Swish is a 10-minute food-delivery service operating in Bengaluru only.',
-    `Serviceable now: ${live.join(', ') || 'none'}. Not live yet: ${soon.join(', ') || 'none'} — plus anywhere outside Bengaluru.`,
+    'Swish is a 10-minute food-delivery service. We cook in neighbourhood kitchens ("Pods") and deliver within roughly a 1 km radius of each, currently across Bengaluru and expanding to new cities. Exact coverage depends on the customer\'s precise address, which the app checks instantly.',
+    `Areas confirmed live: ${live.join(', ') || 'none'}. Not yet live: ${soon.join(', ') || 'none'}, and anywhere outside our current Bengaluru kitchens. If unsure about a specific address, tell them the app confirms coverage instantly.`,
   ];
   if (customerId) {
     const wallet = await providers.wallet.getWallet(customerId);
