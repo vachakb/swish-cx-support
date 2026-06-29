@@ -1,9 +1,11 @@
 import { Hono } from 'hono';
+import { streamSSE } from 'hono/streaming';
 import * as z from 'zod';
 import { engine } from '../app';
 import { buildSendPayload, parseInbound, sendMessage, verifyWebhook } from '../channels/whatsapp';
 import { config } from '../config';
 import { channels, conversationStatuses, orderStatuses } from '../db/schema';
+import { publishMessage, subscribeMessages } from '../notifications/bus';
 import { INACTIVITY_CLOSE_MS } from '../pipeline/lifecycle';
 import * as repo from '../repositories';
 
@@ -56,10 +58,29 @@ app.post('/api/conversations/:id/agent-reply', async (c) => {
   const body = parse(z.object({ text: z.string().min(1) }), await c.req.json().catch(() => null));
   if (!body) return c.json({ error: 'invalid body' }, 400);
   const cid = c.req.param('id');
-  await repo.addMessage({ conversationId: cid, role: 'agent', text: body.text });
+  const message = await repo.addMessage({ conversationId: cid, role: 'agent', text: body.text });
   await repo.updateConversation(cid, { status: 'resolved', assignedTo: 'agent' });
+  publishMessage(cid, message); // push to the customer's open chat over SSE (no polling wait)
   return c.json({ ok: true });
 });
+
+// Live message stream for a conversation (SSE): the customer's open chat subscribes here and
+// receives a human agent's reply the instant it's sent, instead of waiting for the next poll.
+app.get('/api/conversations/:id/events', (c) =>
+  streamSSE(c, async (stream) => {
+    const cid = c.req.param('id');
+    const unsub = subscribeMessages(cid, (m) => {
+      void stream.writeSSE({ event: 'message', id: m.id, data: JSON.stringify(m) });
+    });
+    stream.onAbort(unsub);
+    // Hold the connection open; a periodic ping stops idle proxies from dropping it.
+    while (!c.req.raw.signal.aborted) {
+      await stream.sleep(25_000);
+      await stream.writeSSE({ event: 'ping', data: '' });
+    }
+    unsub();
+  }),
+);
 
 // --- Arena: scenarios + profiles + orders ---
 app.get('/api/faq', async (c) => c.json(await repo.listFaqCategories()));

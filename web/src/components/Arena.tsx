@@ -44,6 +44,8 @@ export function Arena({ customerId, active, target, restoreConversationId, onCon
   const booted = useRef(false);
   const onAgentReplyRef = useRef(onAgentReply);
   onAgentReplyRef.current = onAgentReply;
+  const activeRef = useRef(active);
+  activeRef.current = active;
 
   // Load the customer's orders once — used by the order/item pickers.
   useEffect(() => {
@@ -100,26 +102,46 @@ export function Arena({ customerId, active, target, restoreConversationId, onCon
     }
   }
 
-  // Poll for human (agent) replies; notify if the customer has left this view.
+  // Append a human (agent) reply once, and notify if the customer has left this view.
+  function ingestAgentMessage(m: { id: string; text: string; createdAt: string }) {
+    if (seenAgent.current.has(m.id)) return;
+    seenAgent.current.add(m.id);
+    setMessages((cur) => [...cur, { id: m.id, role: 'agent' as const, text: m.text, createdAt: m.createdAt }]);
+    if (!activeRef.current || document.hidden) notify('Swish Support', m.text);
+    onAgentReplyRef.current?.(m.text);
+  }
+
+  // Primary path: a live SSE stream delivers a human agent's reply the instant it's sent.
+  useEffect(() => {
+    if (!conversationId) return;
+    const es = new EventSource(`/api/conversations/${conversationId}/events`);
+    es.addEventListener('message', (e) => {
+      try {
+        const m = JSON.parse(e.data) as { id: string; role: string; text: string; createdAt: string };
+        if (m.role === 'agent') ingestAgentMessage(m);
+      } catch {
+        /* ignore a malformed frame */
+      }
+    });
+    return () => es.close();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId]);
+
+  // Backstop: a slow poll covers the rare case the SSE stream can't connect (e.g. a buffering proxy).
   useEffect(() => {
     if (!conversationId) return;
     const tick = async () => {
       try {
         const { messages: server } = await api.conversation(conversationId);
-        const fresh = server.filter((m) => m.role === 'agent' && !seenAgent.current.has(m.id));
-        if (fresh.length === 0) return;
-        fresh.forEach((m) => seenAgent.current.add(m.id));
-        setMessages((cur) => [...cur, ...fresh.map((m) => ({ id: m.id, role: 'agent' as const, text: m.text, createdAt: m.createdAt }))]);
-        const last = fresh[fresh.length - 1]!.text;
-        if (!active || document.hidden) notify('Swish Support', last);
-        onAgentReplyRef.current?.(last);
+        server.filter((m) => m.role === 'agent').forEach(ingestAgentMessage);
       } catch {
         /* ignore */
       }
     };
-    const iv = setInterval(tick, 4000);
+    const iv = setInterval(tick, 15000);
     return () => clearInterval(iv);
-  }, [conversationId, active]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId]);
 
   async function send(text: string, image?: ImagePayload, echo = true, oid = orderId, intake?: { role: 'user' | 'assistant'; text: string }[]) {
     void ensureNotifyPermission();
