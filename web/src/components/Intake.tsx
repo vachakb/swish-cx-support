@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import type { Message, OrderWithItems } from '../types';
 import { inr, readImageAsBase64 } from '../util';
-import { ORDER_TOPICS, SUB_ISSUES, TOPIC_SENDS, composeIssueMessage, orderItemNames } from '../intake';
+import { SUB_ISSUES, TOPIC_SENDS, composeIssueMessage, orderItemNames, topicsForStatus } from '../intake';
 import { MessageList } from './MessageList';
 
 type ImagePayload = { mimeType: string; dataBase64: string };
@@ -35,12 +35,17 @@ export function Intake({ order, orders, onComplete }: { order?: OrderWithItems; 
     setStep('topLevel');
   }
 
+  const topics = topicsForStatus(chosen?.status ?? 'delivered');
   function topLevel(id: string) {
-    const label = ORDER_TOPICS.find((t) => t.id === id)?.label ?? id;
+    const label = topics.find((t) => t.id === id)?.label ?? id;
     const next = [...bubbles, mk('user', label)];
     if (id === 'not_right') {
       setBubbles([...next, mk('assistant', "I'm sorry to hear that — what went wrong?")]);
       setStep('subIssue');
+      return;
+    }
+    if (id === 'other_topic') {
+      onComplete({ bubbles: [...next, mk('assistant', "Sure — tell me what's up and I'll help.")], send: null, orderId: chosen?.id });
       return;
     }
     onComplete({ bubbles: next, send: TOPIC_SENDS[id] ?? label, orderId: chosen?.id });
@@ -70,7 +75,7 @@ export function Intake({ order, orders, onComplete }: { order?: OrderWithItems; 
       <MessageList messages={bubbles} channel="web" />
       <div className="border-t border-neutral-200 bg-white p-3">
         {step === 'pickOrder' && <OrderOptions orders={orders} onPick={pickOrder} />}
-        {step === 'topLevel' && <Chips options={ORDER_TOPICS} onPick={topLevel} />}
+        {step === 'topLevel' && <Chips options={topics} onPick={topLevel} />}
         {step === 'subIssue' && <Chips options={SUB_ISSUES} onPick={subIssue} />}
         {step === 'pickItems' && chosen && <ItemPicker items={chosen.items} onConfirm={confirmItems} />}
       </div>

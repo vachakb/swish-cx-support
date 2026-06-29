@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { api } from '../api';
-import { ORDER_TOPICS, SUB_ISSUES, TOPIC_SENDS, composeIssueMessage } from '../intake';
+import { SUB_ISSUES, TOPIC_SENDS, composeIssueMessage, topicsForStatus } from '../intake';
 import type { OrderWithItems } from '../types';
 import { inr } from '../util';
 
@@ -101,9 +101,10 @@ export function WhatsApp({ customerId }: { customerId?: string }) {
     setStep('topLevel');
   }
   function pickTopic(id: string) {
-    const label = ORDER_TOPICS.find((t) => t.id === id)?.label ?? id;
+    const label = (menuOrder ? topicsForStatus(menuOrder.status) : []).find((t) => t.id === id)?.label ?? id;
     pushUser(label);
     if (id === 'not_right') { pushBot("I'm sorry to hear that — what went wrong?"); setStep('subIssue'); return; }
+    if (id === 'other_topic') { setStep('none'); pushBot("Sure — tell me what's up and I'll help."); return; }
     setStep('none');
     void webhookSend(TOPIC_SENDS[id] ?? label, false, menuOrder?.id);
   }
@@ -162,7 +163,7 @@ export function WhatsApp({ customerId }: { customerId?: string }) {
               {step === 'pickOrder' && orders.map((o) => (
                 <WaButton key={o.id} onClick={() => pickOrder(o)}>{inr(o.total)} · {o.status} — {shortId(o.id)}</WaButton>
               ))}
-              {step === 'topLevel' && ORDER_TOPICS.map((t) => <WaButton key={t.id} onClick={() => pickTopic(t.id)}>{t.label}</WaButton>)}
+              {step === 'topLevel' && menuOrder && topicsForStatus(menuOrder.status).map((t) => <WaButton key={t.id} onClick={() => pickTopic(t.id)}>{t.label}</WaButton>)}
               {step === 'subIssue' && SUB_ISSUES.map((s) => <WaButton key={s.id} onClick={() => pickSubIssue(s.id)}>{s.label}</WaButton>)}
               {step === 'pickItems' && menuOrder && <WaItemPicker items={menuOrder.items} onConfirm={confirmItems} />}
             </div>
