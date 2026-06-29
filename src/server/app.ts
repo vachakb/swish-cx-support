@@ -6,7 +6,6 @@ import { buildSendPayload, parseInbound, sendMessage, verifyWebhook } from '../c
 import { config } from '../config';
 import { channels, conversationStatuses, orderStatuses } from '../db/schema';
 import { publishMessage, subscribeMessages } from '../notifications/bus';
-import { INACTIVITY_CLOSE_MS } from '../pipeline/lifecycle';
 import * as repo from '../repositories';
 
 const REFUND_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
@@ -119,7 +118,6 @@ app.post('/api/profiles/:id/orders', async (c) => {
 app.get('/api/profiles/:id/orders', async (c) => c.json(await repo.getOrdersWithItems(c.req.param('id'))));
 
 app.get('/api/profiles/:id/threads', async (c) => {
-  await repo.closeStaleConversations(INACTIVITY_CLOSE_MS); // archive anything gone quiet
   return c.json(await repo.listConversationsByCustomer(c.req.param('id')));
 });
 

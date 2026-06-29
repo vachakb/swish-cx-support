@@ -3,6 +3,11 @@ import type { Intent } from './types';
 // Close + archive a thread after this long without a customer reply.
 export const INACTIVITY_CLOSE_MS = 10 * 60 * 1000;
 
+// The bot's sign-off when a quiet chat is auto-closed — warm, not accusatory ("haven't heard back",
+// never "you didn't reply"), and it reassures the customer that nothing is lost.
+export const INACTIVITY_FAREWELL =
+  "Since I haven't heard back in a little while, I'll close this chat for now — but nothing's lost. 💚 Just reopen it anytime and we'll pick up right where we left off.";
+
 const TITLES: Partial<Record<Intent, string>> = {
   order_status: "Where's my order?",
   order_issue: "Something's not right with my order",

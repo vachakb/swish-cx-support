@@ -53,9 +53,16 @@ export const listConversationsByCustomer = (customerId: string) =>
   db.select().from(conversations).where(eq(conversations.customerId, customerId)).orderBy(desc(conversations.updatedAt)).all();
 
 // Close + archive quiet threads (the 10-minute rule). Escalated threads are left for the human agent.
-export async function closeStaleConversations(thresholdMs: number): Promise<void> {
+// Returns the conversations it just closed (not ones already closed), so the caller can sign each off exactly once.
+export async function closeStaleConversations(thresholdMs: number): Promise<Conversation[]> {
   const cutoff = new Date(Date.now() - thresholdMs);
-  await db.update(conversations).set({ status: 'closed' }).where(and(inArray(conversations.status, ['bot', 'awaiting_user', 'resolved']), lt(conversations.updatedAt, cutoff)));
+  const stale = await db
+    .select()
+    .from(conversations)
+    .where(and(inArray(conversations.status, ['bot', 'awaiting_user', 'resolved']), lt(conversations.updatedAt, cutoff)));
+  if (stale.length === 0) return [];
+  await db.update(conversations).set({ status: 'closed' }).where(inArray(conversations.id, stale.map((c) => c.id)));
+  return stale;
 }
 
 export async function reopenConversation(cid: string): Promise<void> {

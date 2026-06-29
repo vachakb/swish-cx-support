@@ -40,7 +40,7 @@ export function Arena({ customerId, active, target, restoreConversationId, onCon
   const [intakeSeq, setIntakeSeq] = useState(0);
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
   const [ordersLoaded, setOrdersLoaded] = useState(false);
-  const seenAgent = useRef<Set<string>>(new Set());
+  const seenPushed = useRef<Set<string>>(new Set());
   const booted = useRef(false);
   const onAgentReplyRef = useRef(onAgentReply);
   onAgentReplyRef.current = onAgentReply;
@@ -61,7 +61,7 @@ export function Arena({ customerId, active, target, restoreConversationId, onCon
     setTrace(null);
     setStatus(undefined);
     setSuggestions([]);
-    seenAgent.current = new Set();
+    seenPushed.current = new Set();
   }
 
   function beginIntake(oid?: string) {
@@ -94,7 +94,7 @@ export function Arena({ customerId, active, target, restoreConversationId, onCon
       resetThread();
       setConversationId(conversation.id);
       setMessages(server.map((m) => ({ id: m.id, role: m.role, text: m.text, createdAt: m.createdAt })));
-      seenAgent.current = new Set(server.filter((m) => m.role === 'agent').map((m) => m.id));
+      seenPushed.current = new Set(server.map((m) => m.id)); // everything already loaded is "seen"
       setStatus(conversation.status);
       setMode('chat');
     } catch {
@@ -102,23 +102,25 @@ export function Arena({ customerId, active, target, restoreConversationId, onCon
     }
   }
 
-  // Append a human (agent) reply once, and notify if the customer has left this view.
-  function ingestAgentMessage(m: { id: string; text: string; createdAt: string }) {
-    if (seenAgent.current.has(m.id)) return;
-    seenAgent.current.add(m.id);
-    setMessages((cur) => [...cur, { id: m.id, role: 'agent' as const, text: m.text, createdAt: m.createdAt }]);
+  // Append a server-pushed message once (a human agent's reply, or an auto-close sign-off), and
+  // notify if the customer has left this view.
+  function ingestPushed(m: { id: string; role: Message['role']; text: string; createdAt: string }) {
+    if (seenPushed.current.has(m.id)) return;
+    seenPushed.current.add(m.id);
+    setMessages((cur) => [...cur, { id: m.id, role: m.role, text: m.text, createdAt: m.createdAt }]);
     if (!activeRef.current || document.hidden) notify('Swish Support', m.text);
     onAgentReplyRef.current?.(m.text);
   }
 
-  // Primary path: a live SSE stream delivers a human agent's reply the instant it's sent.
+  // Primary path: a live SSE stream delivers an agent reply (or the auto-close note) the instant it's sent.
   useEffect(() => {
     if (!conversationId) return;
     const es = new EventSource(`/api/conversations/${conversationId}/events`);
     es.addEventListener('message', (e) => {
       try {
-        const m = JSON.parse(e.data) as { id: string; role: string; text: string; createdAt: string };
-        if (m.role === 'agent') ingestAgentMessage(m);
+        const m = JSON.parse(e.data) as { id: string; role: Message['role']; text: string; createdAt: string; payload?: { kind?: string } | null };
+        if (m.role !== 'user') ingestPushed(m);
+        if (m.payload?.kind === 'inactivity_close') setStatus('closed'); // surface the reopen banner live
       } catch {
         /* ignore a malformed frame */
       }
@@ -133,7 +135,7 @@ export function Arena({ customerId, active, target, restoreConversationId, onCon
     const tick = async () => {
       try {
         const { messages: server } = await api.conversation(conversationId);
-        server.filter((m) => m.role === 'agent').forEach(ingestAgentMessage);
+        server.filter((m) => m.role === 'agent').forEach(ingestPushed);
       } catch {
         /* ignore */
       }
