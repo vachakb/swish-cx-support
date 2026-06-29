@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { api } from './api';
 import { Arena } from './components/Arena';
+import type { ChatTarget } from './components/Arena';
 import { Home } from './components/Home';
 import { Inbox } from './components/Inbox';
 import { WhatsApp } from './components/WhatsApp';
@@ -11,21 +12,19 @@ type View = 'home' | 'chat' | 'whatsapp' | 'inbox';
 export default function App() {
   const [view, setView] = useState<View>('home');
   const [userId, setUserId] = useState<string>();
-  const [resumeThreadId, setResumeThreadId] = useState<string>();
-  const [chatOrderId, setChatOrderId] = useState<string>();
+  const [target, setTarget] = useState<ChatTarget>({});
 
   useEffect(() => {
     api.profiles().then((p) => setUserId(p[0]?.id)).catch(() => {});
   }, []);
 
   function openChat(orderId?: string) {
-    setChatOrderId(orderId);
+    setTarget({ orderId });
     setView('chat');
   }
 
   function resume(id: string) {
-    setChatOrderId(undefined);
-    setResumeThreadId(id);
+    setTarget({ threadId: id });
     setView('chat');
   }
 
@@ -50,7 +49,7 @@ export default function App() {
         {view === 'home' && <Home customerId={userId} onOpenChat={openChat} onResumeThread={resume} />}
         {/* The chat stays mounted so it keeps polling and can notify while you're elsewhere. */}
         <div className={view === 'chat' ? 'h-full' : 'hidden'}>
-          <Arena customerId={userId} channel="web" active={view === 'chat'} initialOrderId={chatOrderId} resumeThreadId={resumeThreadId} onResumed={() => setResumeThreadId(undefined)} onBack={() => setView('home')} />
+          <Arena customerId={userId} active={view === 'chat'} target={target} onBack={() => setView('home')} />
         </div>
         {view === 'whatsapp' && <WhatsApp customerId={userId} />}
         {view === 'inbox' && <Inbox active />}

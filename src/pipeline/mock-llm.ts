@@ -43,10 +43,12 @@ export function buildMockHandlers(): MockHandlers {
       // then propose a modest partial credit. (The real intelligence is Gemini's.)
       resolve: (req): ResolveDecision => {
         const t = req.prompt;
+        const latest = t.match(/Latest customer message: "([^"]*)"/)?.[1] ?? t;
         const hasPhoto = /attached a photo/i.test(t) && !/No photo attached/i.test(t);
         const askedBefore = /\nassistant:/i.test(t);
-        const issue = mockIssueLabel(t);
-        if (!hasPhoto && !askedBefore) {
+        const detailed = latest.length > 35 || latest.includes(':'); // chip-composed intake messages are already specific
+        const issue = mockIssueLabel(latest);
+        if (!hasPhoto && !askedBefore && !detailed) {
           return {
             sentiment: 'negative',
             diagnosis: `Reported ${issue}`,

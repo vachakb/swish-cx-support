@@ -1,38 +1,50 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { ensureNotifyPermission, notify } from '../notify';
-import type { Message, Trace } from '../types';
-import { Chat } from './Chat';
+import type { Message, OrderWithItems, Trace } from '../types';
+import { Composer } from './Composer';
+import { Intake } from './Intake';
+import type { IntakeResult } from './Intake';
+import { MessageList } from './MessageList';
 import { TracePanel } from './TracePanel';
 
 type ImagePayload = { mimeType: string; dataBase64: string };
 
+// One open intent: a specific order, a generic chat, or a reopened thread. A fresh object per open.
+export interface ChatTarget {
+  orderId?: string;
+  threadId?: string;
+}
+
 interface ArenaProps {
   customerId?: string;
-  channel: 'web' | 'whatsapp';
   active: boolean;
-  initialOrderId?: string; // when opened from a specific order's "Need Help?"
-  resumeThreadId?: string;
-  onResumed?: () => void;
+  target: ChatTarget;
   onBack?: () => void;
 }
 
-// The support chat for the current customer over one channel, with a live decision trace.
-export function Arena({ customerId, channel, active, initialOrderId, resumeThreadId, onResumed, onBack }: ArenaProps) {
+const localMsg = (role: Message['role'], text: string): Message => ({ id: crypto.randomUUID(), role, text, createdAt: '' });
+
+export function Arena({ customerId, active, target, onBack }: ArenaProps) {
   const [conversationId, setConversationId] = useState<string>();
-  const [orderId, setOrderId] = useState<string | undefined>(initialOrderId);
+  const [orderId, setOrderId] = useState<string>();
   const [messages, setMessages] = useState<Message[]>([]);
   const [trace, setTrace] = useState<Trace | null>(null);
   const [status, setStatus] = useState<string>();
-  const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  const [mode, setMode] = useState<'intake' | 'chat'>('intake');
+  const [intakeSeq, setIntakeSeq] = useState(0);
+  const [orders, setOrders] = useState<OrderWithItems[]>([]);
+  const [ordersLoaded, setOrdersLoaded] = useState(false);
   const seenAgent = useRef<Set<string>>(new Set());
 
-  // Opened for a specific order → focus the chat on it (and start a fresh thread).
+  // Load the customer's orders once — used by the order/item pickers.
   useEffect(() => {
-    setOrderId(initialOrderId);
-    if (initialOrderId) resetThread();
-  }, [initialOrderId]);
+    if (!customerId) return;
+    let cancelled = false;
+    api.orders(customerId).then((os) => { if (!cancelled) { setOrders(os); setOrdersLoaded(true); } }).catch(() => setOrdersLoaded(true));
+    return () => { cancelled = true; };
+  }, [customerId]);
 
   function resetThread() {
     setConversationId(undefined);
@@ -42,28 +54,33 @@ export function Arena({ customerId, channel, active, initialOrderId, resumeThrea
     seenAgent.current = new Set();
   }
 
-  function newChat() {
+  function beginIntake(oid?: string) {
     resetThread();
-    setOrderId(undefined);
+    setOrderId(oid);
+    setMode('intake');
+    setIntakeSeq((n) => n + 1);
   }
 
-  // Resume a reopened thread: load its messages and continue it.
+  // Each open (Need Help / Chat / reopen) arrives as a fresh target object → re-initialise.
   useEffect(() => {
-    if (!resumeThreadId) return;
-    void (async () => {
-      try {
-        const { conversation, messages: server } = await api.conversation(resumeThreadId);
-        setConversationId(conversation.id);
-        setMessages(server.map((m) => ({ id: m.id, role: m.role, text: m.text, createdAt: m.createdAt })));
-        seenAgent.current = new Set(server.filter((m) => m.role === 'agent').map((m) => m.id));
-        setTrace(null);
-        setStatus(conversation.status);
-      } catch {
-        /* ignore */
-      }
-      onResumed?.();
-    })();
-  }, [resumeThreadId]);
+    if (target.threadId) void loadThread(target.threadId);
+    else beginIntake(target.orderId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target]);
+
+  async function loadThread(id: string) {
+    try {
+      const { conversation, messages: server } = await api.conversation(id);
+      resetThread();
+      setConversationId(conversation.id);
+      setMessages(server.map((m) => ({ id: m.id, role: m.role, text: m.text, createdAt: m.createdAt })));
+      seenAgent.current = new Set(server.filter((m) => m.role === 'agent').map((m) => m.id));
+      setStatus(conversation.status);
+      setMode('chat');
+    } catch {
+      /* ignore */
+    }
+  }
 
   // Poll for human (agent) replies; notify if the customer has left this view.
   useEffect(() => {
@@ -84,27 +101,32 @@ export function Arena({ customerId, channel, active, initialOrderId, resumeThrea
     return () => clearInterval(iv);
   }, [conversationId, active]);
 
-  function appended(role: Message['role'], text: string): Message {
-    return { id: crypto.randomUUID(), role, text, createdAt: '' };
-  }
-
-  async function send(text: string, image?: ImagePayload) {
+  async function send(text: string, image?: ImagePayload, echo = true, oid = orderId) {
     void ensureNotifyPermission();
     setSending(true);
-    setMessages((m) => [...m, appended('user', text)]);
-    setDraft('');
+    if (echo) setMessages((m) => [...m, localMsg('user', text)]);
     try {
-      const { result, trace: t } = await api.chat({ conversationId, customerId, orderId, channel, text, image });
+      const { result, trace: t } = await api.chat({ conversationId, customerId, orderId: oid, channel: 'web', text, image });
       setConversationId(result.conversationId);
       setTrace(t);
       setStatus(result.status);
-      setMessages((m) => [...m, appended('assistant', result.reply)]);
+      setMessages((m) => [...m, localMsg('assistant', result.reply)]);
     } catch {
-      setMessages((m) => [...m, appended('assistant', 'Sorry — I had trouble reaching support just now. Please try again.')]);
+      setMessages((m) => [...m, localMsg('assistant', 'Sorry — I had trouble reaching support just now. Please try again.')]);
     } finally {
       setSending(false);
     }
   }
+
+  function onIntakeComplete(r: IntakeResult) {
+    setMessages(r.bubbles);
+    if (r.orderId) setOrderId(r.orderId);
+    setMode('chat');
+    if (r.send) void send(r.send, undefined, false, r.orderId ?? orderId);
+  }
+
+  const intakeOrder = orderId ? orders.find((o) => o.id === orderId) : undefined;
+  const intakeWaiting = mode === 'intake' && orderId !== undefined && !ordersLoaded;
 
   return (
     <div className="grid h-full grid-cols-[1fr_320px] max-lg:grid-cols-1 max-lg:overflow-y-auto">
@@ -112,13 +134,23 @@ export function Arena({ customerId, channel, active, initialOrderId, resumeThrea
         <div className="flex items-center justify-between border-b border-neutral-200 bg-white px-4 py-2">
           <div className="flex items-center gap-2">
             {onBack && <button type="button" onClick={onBack} className="text-lg leading-none text-neutral-700">←</button>}
-            <span className="text-sm font-medium text-neutral-700">{channel === 'whatsapp' ? 'WhatsApp' : 'Support chat'}</span>
+            <span className="text-sm font-medium text-neutral-700">Support chat</span>
           </div>
-          <button type="button" onClick={newChat} className="rounded-md border border-neutral-200 px-2.5 py-1 text-xs text-neutral-600 hover:bg-neutral-50">+ New chat</button>
+          <button type="button" onClick={() => beginIntake(undefined)} className="rounded-md border border-neutral-200 px-2.5 py-1 text-xs text-neutral-600 hover:bg-neutral-50">+ New chat</button>
         </div>
-        <div className="min-h-0 flex-1">
-          <Chat messages={messages} sending={sending} channel={channel} draft={draft} onSend={send} />
-        </div>
+
+        {mode === 'intake' ? (
+          intakeWaiting ? (
+            <div className="grid flex-1 place-items-center text-sm text-neutral-400">Loading…</div>
+          ) : (
+            <Intake key={intakeSeq} order={intakeOrder} orders={orders} onComplete={onIntakeComplete} />
+          )
+        ) : (
+          <>
+            <MessageList messages={messages} sending={sending} channel="web" placeholder="Tell us what's up and we'll help." />
+            <Composer sending={sending} onSend={(t, img) => void send(t, img)} />
+          </>
+        )}
       </section>
       <aside className="border-l border-neutral-200 max-lg:border-t">
         <TracePanel trace={trace} status={status} />

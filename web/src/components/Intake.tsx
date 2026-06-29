@@ -1,0 +1,133 @@
+import { useState } from 'react';
+import type { Message, OrderWithItems } from '../types';
+import { inr } from '../util';
+import { ORDER_TOPICS, SUB_ISSUES, TOPIC_SENDS, composeIssueMessage, orderItemNames } from '../intake';
+import { MessageList } from './MessageList';
+
+let seq = 0;
+const mk = (role: Message['role'], text: string): Message => ({ id: `intake-${seq++}`, role, text, createdAt: '' });
+const shortId = (id: string) => id.slice(-6).toUpperCase();
+
+export interface IntakeResult {
+  bubbles: Message[];
+  send: string | null; // message to send to the agent, or null to drop into free chat
+  orderId?: string;
+}
+
+type Step = 'pickOrder' | 'topLevel' | 'subIssue' | 'pickItems';
+
+// Guided intake: disambiguates intent + gathers the affected items before free chat,
+// matching Swish's Help flow and giving the resolution agent precise context up front.
+export function Intake({ order, orders, onComplete }: { order?: OrderWithItems; orders: OrderWithItems[]; onComplete: (r: IntakeResult) => void }) {
+  const [bubbles, setBubbles] = useState<Message[]>(() => [mk('assistant', order ? 'How can I help with this order?' : 'Which order do you need help with?')]);
+  const [step, setStep] = useState<Step>(order ? 'topLevel' : 'pickOrder');
+  const [chosen, setChosen] = useState<OrderWithItems | undefined>(order);
+  const [issue, setIssue] = useState('');
+
+  function pickOrder(o: OrderWithItems) {
+    setChosen(o);
+    setBubbles((b) => [...b, mk('user', `Order ${shortId(o.id)} · ${inr(o.total)}`), mk('assistant', 'How can I help with this order?')]);
+    setStep('topLevel');
+  }
+
+  function topLevel(id: string) {
+    const label = ORDER_TOPICS.find((t) => t.id === id)?.label ?? id;
+    const next = [...bubbles, mk('user', label)];
+    if (id === 'not_right') {
+      setBubbles([...next, mk('assistant', "I'm sorry to hear that — what went wrong?")]);
+      setStep('subIssue');
+      return;
+    }
+    onComplete({ bubbles: next, send: TOPIC_SENDS[id] ?? label, orderId: chosen?.id });
+  }
+
+  function subIssue(id: string) {
+    const label = SUB_ISSUES.find((s) => s.id === id)?.label ?? id;
+    const next = [...bubbles, mk('user', label)];
+    if (id === 'other') {
+      onComplete({ bubbles: [...next, mk('assistant', 'No problem — tell me what happened and I’ll help.')], send: null, orderId: chosen?.id });
+      return;
+    }
+    setIssue(id);
+    setBubbles([...next, mk('assistant', 'Which item(s) were affected?')]);
+    setStep('pickItems');
+  }
+
+  function confirmItems(names: string[]) {
+    const next = [...bubbles, mk('user', names.join(', '))];
+    onComplete({ bubbles: next, send: composeIssueMessage(issue, names), orderId: chosen?.id });
+  }
+
+  return (
+    <div className="flex h-full flex-col">
+      <MessageList messages={bubbles} channel="web" />
+      <div className="border-t border-neutral-200 bg-white p-3">
+        {step === 'pickOrder' && <OrderOptions orders={orders} onPick={pickOrder} />}
+        {step === 'topLevel' && <Chips options={ORDER_TOPICS} onPick={topLevel} />}
+        {step === 'subIssue' && <Chips options={SUB_ISSUES} onPick={subIssue} />}
+        {step === 'pickItems' && chosen && <ItemPicker items={chosen.items} onConfirm={confirmItems} />}
+      </div>
+    </div>
+  );
+}
+
+function Chips({ options, onPick }: { options: ReadonlyArray<{ id: string; label: string; icon?: string }>; onPick: (id: string) => void }) {
+  return (
+    <div className="flex flex-col gap-2">
+      {options.map((o) => (
+        <button key={o.id} type="button" onClick={() => onPick(o.id)} className="flex items-center gap-2.5 rounded-xl border border-neutral-200 px-3.5 py-2.5 text-left text-sm font-medium text-neutral-700 hover:border-swish-300 hover:bg-swish-50">
+          {'icon' in o && o.icon && <span className="text-base">{o.icon}</span>}
+          <span className="flex-1">{o.label}</span>
+          <span className="text-neutral-300">›</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function OrderOptions({ orders, onPick }: { orders: OrderWithItems[]; onPick: (o: OrderWithItems) => void }) {
+  if (orders.length === 0) return <div className="py-2 text-sm text-neutral-400">Loading your orders…</div>;
+  return (
+    <div className="flex max-h-64 flex-col gap-2 overflow-y-auto">
+      {orders.map((o) => (
+        <button key={o.id} type="button" onClick={() => onPick(o)} className="rounded-xl border border-neutral-200 px-3.5 py-2.5 text-left hover:border-swish-300 hover:bg-swish-50">
+          <div className="flex items-center justify-between text-sm">
+            <span className="font-semibold text-neutral-800">{inr(o.total)} · {o.status}</span>
+            <span className="text-xs text-neutral-400">{shortId(o.id)}</span>
+          </div>
+          <div className="mt-0.5 truncate text-xs text-neutral-500">{orderItemNames(o)}</div>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ItemPicker({ items, onConfirm }: { items: OrderWithItems['items']; onConfirm: (names: string[]) => void }) {
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  function toggle(name: string) {
+    setSel((s) => {
+      const n = new Set(s);
+      if (n.has(name)) n.delete(name);
+      else n.add(name);
+      return n;
+    });
+  }
+  return (
+    <div className="flex flex-col gap-2.5">
+      <div className="flex flex-wrap gap-2">
+        {items.map((i) => {
+          const on = sel.has(i.name);
+          return (
+            <button key={i.name} type="button" onClick={() => toggle(i.name)} className={`rounded-full border px-3 py-1.5 text-sm ${on ? 'border-swish-500 bg-swish-500 text-white' : 'border-neutral-200 text-neutral-700 hover:bg-neutral-50'}`}>
+              {on ? '✓ ' : ''}
+              {i.name}
+            </button>
+          );
+        })}
+      </div>
+      <button type="button" disabled={sel.size === 0} onClick={() => onConfirm([...sel])} className="self-end rounded-lg bg-swish-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-40">
+        Continue
+      </button>
+    </div>
+  );
+}

@@ -8,6 +8,7 @@ export const intents = [
   'greeting',
   'faq',
   'referral_status',
+  'refund_status',
   'order_status',
   'order_issue',
   'cancel_order',
