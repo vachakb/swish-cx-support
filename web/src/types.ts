@@ -119,5 +119,6 @@ export interface Conversation {
   sentiment?: string | null;
   customerId?: string | null;
   escalationReason?: string | null;
+  createdAt: string;
   updatedAt: string;
 }
