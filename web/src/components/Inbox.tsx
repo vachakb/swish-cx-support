@@ -53,13 +53,17 @@ export function Inbox({ active }: { active: boolean }) {
             <button
               key={c.id}
               onClick={() => open(c.id)}
-              className={`block w-full rounded-lg border p-2.5 text-left ${selectedId === c.id ? 'border-swish-300 bg-swish-50' : 'border-neutral-200 bg-white hover:bg-neutral-50'}`}
+              className={`block w-full rounded-xl bg-white p-3 text-left shadow-card transition ${selectedId === c.id ? 'ring-2 ring-swish-300' : 'hover:shadow-soft'}`}
             >
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-neutral-800">{c.subject ?? c.id.replace('cnv_', '#')}</span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="truncate text-sm font-semibold text-neutral-900">{c.subject ?? c.id.replace('cnv_', '#')}</span>
                 <StatusBadge status={c.status} />
               </div>
-              <div className="mt-0.5 text-xs text-neutral-500">{c.channel}{c.escalationReason ? ` · ${c.escalationReason}` : ''}</div>
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                {c.status === 'escalated' && <TeamTag reason={c.escalationReason} />}
+                <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-medium capitalize text-neutral-500">{c.channel}</span>
+              </div>
+              {c.escalationReason && <div className="mt-1.5 text-xs leading-snug text-neutral-400">{c.escalationReason}</div>}
             </button>
           ))}
         </div>
@@ -103,4 +107,17 @@ export function Inbox({ active }: { active: boolean }) {
 function StatusBadge({ status }: { status: string }) {
   const tone = status === 'escalated' ? 'bg-amber-100 text-amber-700' : status === 'resolved' ? 'bg-green-100 text-green-700' : 'bg-neutral-100 text-neutral-600';
   return <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${tone}`}>{status}</span>;
+}
+
+// Which team an escalation routes to, derived from its reason — so the queue shows where each one is headed.
+const TEAMS: { re: RegExp; label: string; cls: string }[] = [
+  { re: /safety|conduct|misbehav|misconduct|rude|abusiv|harass|unsafe|hair|bug|insect|contaminat|foreign|sick|food.?pois|spoil|rotten/i, label: '🛡️ Safety review', cls: 'bg-red-50 text-red-700' },
+  { re: /refund|payment|billing|charged|overcharg/i, label: '↺ Refund approval', cls: 'bg-swish-50 text-swish-700' },
+  { re: /kitchen|missing|packed/i, label: '🍳 Kitchen check', cls: 'bg-amber-50 text-amber-700' },
+  { re: /rider|tracking|late|dispatch|delayed|\beta\b|delivery/i, label: '🛵 Rider / dispatch', cls: 'bg-blue-50 text-blue-700' },
+];
+function TeamTag({ reason }: { reason?: string | null }) {
+  const team = (reason && TEAMS.find((t) => t.re.test(reason))) || null;
+  const { label, cls } = team ?? { label: '💬 Needs a teammate', cls: 'bg-neutral-100 text-neutral-600' };
+  return <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${cls}`}>{label}</span>;
 }
