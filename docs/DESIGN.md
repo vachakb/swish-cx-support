@@ -138,7 +138,7 @@ A minor, subjective gripe (coffee too bitter) gets empathy + kitchen feedback �
 | WISMO turn (smart tier, end-to-end) | ~6.3 s |
 | SSE delivery of an agent reply | **~1 ms** after send (vs up to 4 s polling) |
 
-**Tests:** 35, on the deterministic core — policy math, ETA gates, idempotency (incl. the double-pay test), PII redaction, guardrails, the full pipeline wiring, confirm-before-close, inactivity. (`tsc --noEmit` is the type gate.)
+**Tests:** 42, on the deterministic core — policy math, ETA gates, idempotency (incl. the double-pay test), PII redaction, guardrails, rate limiting, the full pipeline wiring, confirm-before-close, inactivity. (`tsc --noEmit` is the type gate.)
 
 **Trace panel** surfaces, per turn: stage timings, model + tier, token counts, est. ₹ cost, and the policy verdict.
 

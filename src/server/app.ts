@@ -8,10 +8,15 @@ import { channels, conversationStatuses } from '../db/schema';
 import { publishMessage, subscribeCustomer, subscribeMessages } from '../notifications/bus';
 import { REFUND_PROCESSING_MS } from '../policy/config';
 import * as repo from '../repositories';
+import { rateLimit } from './rate-limit';
 
 const REFUND_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 export const app = new Hono();
+
+// In-process rate limiting: a generous global ceiling, plus a tighter cap on the LLM-backed chat path.
+app.use('/api/*', rateLimit({ limit: config.rateLimit.global, windowMs: config.rateLimit.windowMs }));
+app.use('/api/chat', rateLimit({ limit: config.rateLimit.chat, windowMs: config.rateLimit.windowMs }));
 
 function parse<T>(schema: z.ZodType<T>, raw: unknown): T | null {
   const r = schema.safeParse(raw);

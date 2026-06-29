@@ -2,7 +2,7 @@
 
 Automated customer-support engine for **Swish** (10-minute food delivery). It resolves FAQs and order issues end-to-end, escalates gracefully to a human when it should, and is built to plug into Swish's stack. **The engine is the product; the web app is a demo surface.**
 
-> Runs with **no API key** out of the box (deterministic mock LLM). Add a Gemini key to switch on the real models. Fully typed; 35 passing tests.
+> Runs with **no API key** out of the box (deterministic mock LLM). Add a Gemini key to switch on the real models. Fully typed; 42 passing tests.
 
 📄 **The full write-up of the entire process** — research, design decisions and trade-offs, results, and what I deliberately didn't build — is in **[`docs/DESIGN.md`](docs/DESIGN.md)**.
 
@@ -61,7 +61,7 @@ The rendered architecture diagram and the rationale behind each stage are in [`d
 
 ## Tech stack
 
-TypeScript 6 / Node (ESM) · **Hono** (API) · **Drizzle + libSQL/SQLite** (data) · **Gemini** via `@google/genai`, pluggable, with a deterministic mock · **json-rules-engine** (policy) · **React 19 + Vite 8 + Tailwind v4** (UI) · **vitest** (35 tests).
+TypeScript 6 / Node (ESM) · **Hono** (API) · **Drizzle + libSQL/SQLite** (data) · **Gemini** via `@google/genai`, pluggable, with a deterministic mock · **json-rules-engine** (policy) · **React 19 + Vite 8 + Tailwind v4** (UI) · **vitest** (42 tests).
 
 ## Commands
 
@@ -70,7 +70,7 @@ TypeScript 6 / Node (ESM) · **Hono** (API) · **Drizzle + libSQL/SQLite** (data
 | `npm run dev` | API + web, hot reload |
 | `npm run setup` | migrate + seed demo data |
 | `npm run build` / `npm start` | build UI / serve UI + API on one port |
-| `npm test` | run the test suite (35 tests) |
+| `npm test` | run the test suite (42 tests) |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run bakeoff` | routing-strategy comparison (accuracy + latency) |
 | `npm run db:generate` | regenerate Drizzle migrations after a schema change |
