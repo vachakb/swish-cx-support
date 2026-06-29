@@ -69,12 +69,18 @@ export function Intake({ order, orders, onComplete }: { order?: OrderWithItems; 
     onComplete({ bubbles: next, send: composeIssueMessage(issue, names), orderId: chosen?.id, image });
   }
 
+  // No order to pick, or the question isn't order-related → drop into free chat for general help.
+  function pickGeneral() {
+    const next = [...bubbles, mk('user', "It's not about an order"), mk('assistant', 'No problem — what can I help you with? Ask about payments, your account, referrals, areas we deliver to, or anything else.')];
+    onComplete({ bubbles: next, send: null, orderId: undefined });
+  }
+
   return (
     <div className="flex h-full flex-col">
       <MessageList messages={bubbles} channel="web" />
       <div className="border-t border-neutral-100 bg-white px-4 py-3">
         <div className="mx-auto w-full max-w-2xl">
-          {step === 'pickOrder' && <OrderOptions orders={orders} onPick={pickOrder} />}
+          {step === 'pickOrder' && <OrderOptions orders={orders} onPick={pickOrder} onGeneral={pickGeneral} />}
           {step === 'topLevel' && <Chips options={topics} onPick={topLevel} />}
           {step === 'subIssue' && <Chips options={SUB_ISSUES} onPick={subIssue} />}
           {step === 'pickItems' && chosen && <ItemPicker items={chosen.items} onConfirm={confirmItems} />}
@@ -98,8 +104,7 @@ function Chips({ options, onPick }: { options: ReadonlyArray<{ id: string; label
   );
 }
 
-function OrderOptions({ orders, onPick }: { orders: OrderWithItems[]; onPick: (o: OrderWithItems) => void }) {
-  if (orders.length === 0) return <div className="py-2 text-sm text-neutral-400">Loading your orders…</div>;
+function OrderOptions({ orders, onPick, onGeneral }: { orders: OrderWithItems[]; onPick: (o: OrderWithItems) => void; onGeneral: () => void }) {
   return (
     <div className="flex max-h-64 flex-col gap-2 overflow-y-auto">
       {orders.map((o) => (
@@ -111,6 +116,9 @@ function OrderOptions({ orders, onPick }: { orders: OrderWithItems[]; onPick: (o
           <div className="mt-0.5 text-xs capitalize text-neutral-400">{o.status} · {longDate(o.placedAt)}</div>
         </button>
       ))}
+      <button type="button" onClick={onGeneral} className="rounded-xl border border-dashed border-neutral-300 px-3.5 py-2.5 text-left text-sm font-medium text-neutral-600 transition hover:border-swish-300 hover:bg-swish-50 hover:text-swish-700">
+        💬 {orders.length === 0 ? 'Ask a general question' : "It's not about a specific order"}
+      </button>
     </div>
   );
 }

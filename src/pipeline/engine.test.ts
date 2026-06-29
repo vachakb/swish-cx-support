@@ -61,10 +61,10 @@ describe('pipeline runTurn (mock LLM)', () => {
     expect(r.status).toBe('escalated');
   });
 
-  it('greets via the LLM-classified tail path', async () => {
+  it('greets via the LLM-classified tail path and keeps the chat open', async () => {
     const r = await runTurn({ channel: 'web', text: 'hi there!' }, deps);
     expect(r.intent).toBe('greeting');
-    expect(r.status).toBe('resolved');
+    expect(r.status).toBe('awaiting_user');
   });
 
   it('does NOT parrot a stuck ETA — it stays honest and escalates instead of guessing or auto-crediting', async () => {
