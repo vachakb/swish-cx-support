@@ -59,12 +59,11 @@ app.post('/api/conversations/:id/agent-reply', async (c) => {
   const cid = c.req.param('id');
   const message = await repo.addMessage({ conversationId: cid, role: 'agent', text: body.text });
   await repo.updateConversation(cid, { status: 'resolved', assignedTo: 'agent' });
-  publishMessage(cid, message); // push to the customer's open chat over SSE (no polling wait)
+  publishMessage(cid, message); // push to the open chat over SSE
   return c.json({ ok: true });
 });
 
-// Live message stream for a conversation (SSE): the customer's open chat subscribes here and
-// receives a human agent's reply the instant it's sent, instead of waiting for the next poll.
+// Live SSE stream of a conversation's messages — the open chat gets an agent reply instantly.
 app.get('/api/conversations/:id/events', (c) =>
   streamSSE(c, async (stream) => {
     const cid = c.req.param('id');
@@ -72,17 +71,15 @@ app.get('/api/conversations/:id/events', (c) =>
       void stream.writeSSE({ event: 'message', id: m.id, data: JSON.stringify(m) });
     });
     stream.onAbort(unsub);
-    // Hold the connection open; a periodic ping stops idle proxies from dropping it.
     while (!c.req.raw.signal.aborted) {
-      await stream.sleep(25_000);
+      await stream.sleep(25_000); // keep-alive ping so idle proxies don't drop it
       await stream.writeSSE({ event: 'ping', data: '' });
     }
     unsub();
   }),
 );
 
-// Customer-level stream (SSE): proactive notifications about any of the customer's orders — e.g. a
-// "your order's running late" nudge — delivered wherever they are in the app, not just an open chat.
+// Customer-level SSE stream: proactive nudges (e.g. a late-order heads-up) wherever they are in the app.
 app.get('/api/customers/:id/events', (c) =>
   streamSSE(c, async (stream) => {
     const id = c.req.param('id');
@@ -146,8 +143,7 @@ app.post('/api/whatsapp/webhook', async (c) => {
   // Meta sends the wa_id as digits; our customers are stored E.164 (+…).
   const phone = inbound.from.startsWith('+') ? inbound.from : `+${inbound.from}`;
   const customer = await repo.getCustomerByPhone(phone);
-  // The chosen order from the guided menu rides along as a query param in this sim;
-  // in production it'd be encoded in the WhatsApp interactive-reply id.
+  // Guided-menu order rides as a query param in the sim (the interactive-reply id in production).
   const orderId = c.req.query('orderId') || undefined;
   const result = await engine.run({ channel: 'whatsapp', text: inbound.text, customerId: customer?.id, orderId });
   await sendMessage(inbound.from, result.reply);

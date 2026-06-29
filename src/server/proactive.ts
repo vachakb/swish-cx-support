@@ -3,8 +3,7 @@ import { publishCustomerEvent, publishMessage } from '../notifications/bus';
 import * as repo from '../repositories';
 import type { Order } from '../repositories';
 
-// Check for late/stuck orders this often. The best support ticket is the one never filed: we reach out
-// before the customer has to ask. Honest status only — this never moves money.
+// Reach out about late orders before the customer asks. Honest status only — never moves money.
 const PROACTIVE_INTERVAL_MS = 90 * 1000;
 
 function composeProactive(truth: ReturnType<typeof assessEta>): string {
@@ -41,8 +40,8 @@ export async function sweepLateOrders(now = Date.now()): Promise<number> {
     if (msgs.some((m) => (m.payload as { kind?: string } | null)?.kind === 'proactive_eta')) continue; // already nudged once
     const text = composeProactive(truth);
     const msg = await repo.addMessage({ conversationId: conv.id, role: 'assistant', text, payload: { kind: 'proactive_eta', orderId: order.id } });
-    publishMessage(conv.id, msg); // → an open chat on this conversation
-    publishCustomerEvent(order.customerId, { conversationId: conv.id, kind: 'proactive_eta', text }); // → a notification anywhere in the app
+    publishMessage(conv.id, msg);
+    publishCustomerEvent(order.customerId, { conversationId: conv.id, kind: 'proactive_eta', text }); // notify customer-wide, not just an open chat
     reached++;
   }
   return reached;
@@ -50,7 +49,7 @@ export async function sweepLateOrders(now = Date.now()): Promise<number> {
 
 export function startProactiveOutreach(intervalMs = PROACTIVE_INTERVAL_MS): () => void {
   const timer = setInterval(() => {
-    void sweepLateOrders().catch(() => {}); // a sweep error must never crash the loop
+    void sweepLateOrders().catch(() => {}); // never crash the loop
   }, intervalMs);
   timer.unref?.();
   return () => clearInterval(timer);

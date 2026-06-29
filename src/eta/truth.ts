@@ -28,8 +28,7 @@ export interface EtaInput {
 const mins = (ms: number) => Math.round(ms / 60_000);
 const HANDOFF_S = 60; // last-leg buffer (park, walk up) on top of travel time
 
-// The heart of the "stuck ETA" fix: reason over the ETA's freshness, and recompute a FRESH estimate
-// from the rider's distance rather than ever parroting a cached/frozen number.
+// The "stuck ETA" fix: reason over freshness, recompute from rider distance, never parrot a frozen number.
 export function assessEta(input: EtaInput): EtaTruth {
   const etaAgeMs = input.now - input.etaLastComputedAt.getTime();
   const gpsAgeMs = input.riderLastGpsAt ? input.now - input.riderLastGpsAt.getTime() : null;

@@ -39,7 +39,6 @@ async function seed() {
 
   await db.insert(customers).values([{ id: CUSTOMER, name: 'Arjun Mehta', phone: '+919000011111', email: 'arjun@example.com', city: 'Bengaluru', area: 'HSR Layout', accountAgeDays: 420 }]);
 
-  // creditBalance + referralRewardPending feed the wallet-backed flows.
   await db.insert(wallets).values([{ customerId: CUSTOMER, creditBalance: 3000, referralCode: 'ARJUN150', referralsCompleted: 3, referralRewardEarned: 15000, referralRewardPending: 5000 }]);
 
   await db.insert(serviceability).values([
@@ -80,7 +79,6 @@ async function seed() {
   await db.insert(orderTracking).values([
     // Stuck: ETA frozen at 3 min, computed + GPS 20 min ago, promise breached 12 min ago.
     { orderId: 'ord_stuck', etaSeconds: 180, etaLastComputedAt: mins(20), riderLat: 12.911, riderLng: 77.638, riderLastGpsAt: mins(20), distanceRemainingM: 1200, stage: 'enroute', stateLastTransitionAt: mins(20) },
-    // Fresh and healthy.
     { orderId: 'ord_active', etaSeconds: 300, etaLastComputedAt: secs(15), riderLat: 12.935, riderLng: 77.624, riderLastGpsAt: secs(8), distanceRemainingM: 900, stage: 'enroute', stateLastTransitionAt: secs(90) },
   ]);
 
@@ -108,7 +106,6 @@ async function seed() {
     { id: 'msg_c8', conversationId: 'cnv_closed_2', role: 'assistant', text: 'It was a few minutes out and has since been delivered — marked complete a moment ago. Hope it was delicious! Anything else?' },
   ]);
 
-  // Refunds card content: a processing refund + a completed goodwill credit.
   await db.insert(resolutions).values([
     { id: 'res_1', conversationId: 'cnv_closed_1', customerId: CUSTOMER, orderId: 'ord_del_2', type: 'refund', amount: 19800, reason: 'spillage', decidedBy: 'bot', status: 'executed', idempotencyKey: 'seed-1', createdAt: days(1) },
     { id: 'res_2', conversationId: 'cnv_closed_2', customerId: CUSTOMER, orderId: 'ord_stuck', type: 'credit', amount: 3000, reason: 'delay goodwill', decidedBy: 'bot', status: 'executed', idempotencyKey: 'seed-2', createdAt: mins(30) },

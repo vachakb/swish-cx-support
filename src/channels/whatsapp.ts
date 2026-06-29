@@ -1,9 +1,7 @@
 import * as z from 'zod';
 import { config } from '../config';
 
-// Built to the real WhatsApp Cloud API contract. With creds set, sends are real Graph API calls;
-// without them (sim mode), send is a no-op and the webhook route echoes the reply to the simulator.
-
+// Real WhatsApp Cloud API contract; in sim mode (no creds) send is a no-op.
 export function verifyWebhook(query: { mode?: string; token?: string; challenge?: string }): string | null {
   if (query.mode === 'subscribe' && query.token === config.whatsapp.verifyToken) return query.challenge ?? '';
   return null;
@@ -40,7 +38,7 @@ export function parseInbound(body: unknown): InboundWa | null {
   return { from: msg.from, text: msg.text.body, messageId: msg.id };
 }
 
-// The exact Graph API request body we'd POST to reply
+// Exact Graph API send body.
 export function buildSendPayload(to: string, text: string) {
   return { messaging_product: 'whatsapp', recipient_type: 'individual', to, type: 'text', text: { body: text } };
 }

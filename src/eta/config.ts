@@ -1,4 +1,3 @@
-// Thresholds for judging whether a live ETA can be trusted. Tunable.
 export const etaConfig = {
   gpsStaleMs: 90_000, // rider GPS older than this → the ETA is coasting on dead data
   etaStaleMs: 120_000, // ETA not recomputed in this long → cached/stale

@@ -1,5 +1,4 @@
-// Tunable refund/fraud thresholds. In production these would be authored as
-// @swishhq/rule-engine JSON so ops can change them without a deploy.
+// Refund/fraud thresholds (would be ops-editable rule-engine JSON in production).
 export const policyConfig = {
   autoApproveCapPaise: 50_000, // ₹500 — claims at/under this can auto-resolve
   velocityWindowDays: 7,

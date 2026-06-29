@@ -17,8 +17,7 @@ export function subscribeMessages(conversationId: string, cb: (m: Message) => vo
   return () => emitter.off(ev, cb);
 }
 
-// Customer-level channel: notifications that aren't tied to the chat the customer happens to have open
-// (e.g. a proactive "your order's running late" nudge about any of their orders).
+// Customer-level channel: notify a customer about anything, not just their open chat.
 export interface CustomerEvent {
   conversationId: string;
   kind: string;
