@@ -140,7 +140,15 @@ export function WhatsApp({ customerId }: { customerId?: string }) {
                 <div className={`max-w-[80%] whitespace-pre-wrap rounded-lg px-2.5 py-1.5 text-sm text-neutral-800 shadow-sm ${m.role === 'user' ? 'bg-[#dcf8c6]' : 'bg-white'}`}>{m.text}</div>
               </div>
             ))}
-            {sending && <div className="text-xs text-neutral-500">Swish is typing…</div>}
+            {sending && (
+              <div className="flex justify-start">
+                <div className="flex items-center gap-1 rounded-lg bg-white px-3 py-2 shadow-sm">
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-neutral-400 [animation-delay:-0.3s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-neutral-400 [animation-delay:-0.15s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-neutral-400" />
+                </div>
+              </div>
+            )}
             <div ref={endRef} />
           </div>
 

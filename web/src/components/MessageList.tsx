@@ -11,8 +11,20 @@ export function MessageList({ messages, sending, channel, placeholder }: { messa
       {messages.map((m) => (
         <Bubble key={m.id} message={m} wa={wa} />
       ))}
-      {sending && <div className="text-xs text-neutral-400">Swish is typing…</div>}
+      {sending && <TypingDots />}
       <div ref={endRef} />
+    </div>
+  );
+}
+
+export function TypingDots() {
+  return (
+    <div className="flex justify-start">
+      <div className="flex items-center gap-1 rounded-2xl bg-white px-3 py-2.5 shadow-sm">
+        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-neutral-400 [animation-delay:-0.3s]" />
+        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-neutral-400 [animation-delay:-0.15s]" />
+        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-neutral-400" />
+      </div>
     </div>
   );
 }

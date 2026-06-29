@@ -20,12 +20,14 @@ interface ArenaProps {
   customerId?: string;
   active: boolean;
   target: ChatTarget;
+  restoreConversationId?: string;
+  onConversation?: (id: string | undefined) => void;
   onBack?: () => void;
 }
 
 const localMsg = (role: Message['role'], text: string): Message => ({ id: crypto.randomUUID(), role, text, createdAt: '' });
 
-export function Arena({ customerId, active, target, onBack }: ArenaProps) {
+export function Arena({ customerId, active, target, restoreConversationId, onConversation, onBack }: ArenaProps) {
   const [conversationId, setConversationId] = useState<string>();
   const [orderId, setOrderId] = useState<string>();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -37,6 +39,7 @@ export function Arena({ customerId, active, target, onBack }: ArenaProps) {
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
   const [ordersLoaded, setOrdersLoaded] = useState(false);
   const seenAgent = useRef<Set<string>>(new Set());
+  const booted = useRef(false);
 
   // Load the customer's orders once — used by the order/item pickers.
   useEffect(() => {
@@ -63,10 +66,20 @@ export function Arena({ customerId, active, target, onBack }: ArenaProps) {
 
   // Each open (Need Help / Chat / reopen) arrives as a fresh target object → re-initialise.
   useEffect(() => {
+    if (!booted.current) {
+      booted.current = true;
+      if (restoreConversationId) { void loadThread(restoreConversationId); return; } // restore the active chat on refresh
+    }
     if (target.threadId) void loadThread(target.threadId);
     else beginIntake(target.orderId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target]);
+
+  // Report the active conversation up so it survives a page refresh.
+  useEffect(() => {
+    onConversation?.(conversationId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId]);
 
   async function loadThread(id: string) {
     try {

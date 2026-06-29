@@ -9,14 +9,33 @@ import { WhatsApp } from './components/WhatsApp';
 
 type View = 'home' | 'chat' | 'whatsapp' | 'inbox';
 
+const SESSION_KEY = 'swish.session.v1';
+function loadSession(): { view?: View; target?: ChatTarget; convId?: string } {
+  try {
+    return JSON.parse(localStorage.getItem(SESSION_KEY) ?? '{}');
+  } catch {
+    return {};
+  }
+}
+
 export default function App() {
-  const [view, setView] = useState<View>('home');
+  const [view, setView] = useState<View>(() => loadSession().view ?? 'home');
   const [userId, setUserId] = useState<string>();
-  const [target, setTarget] = useState<ChatTarget>({});
+  const [target, setTarget] = useState<ChatTarget>(() => loadSession().target ?? {});
+  const [chatConvId, setChatConvId] = useState<string | undefined>(() => loadSession().convId);
 
   useEffect(() => {
     api.profiles().then((p) => setUserId(p[0]?.id)).catch(() => {});
   }, []);
+
+  // Persist the session so a refresh restores the tab + active conversation.
+  useEffect(() => {
+    try {
+      localStorage.setItem(SESSION_KEY, JSON.stringify({ view, target, convId: chatConvId }));
+    } catch {
+      /* ignore */
+    }
+  }, [view, target, chatConvId]);
 
   function openChat(orderId?: string) {
     setTarget({ orderId });
@@ -49,7 +68,7 @@ export default function App() {
         {view === 'home' && <Home customerId={userId} onOpenChat={openChat} onResumeThread={resume} />}
         {/* The chat stays mounted so it keeps polling and can notify while you're elsewhere. */}
         <div className={view === 'chat' ? 'h-full' : 'hidden'}>
-          <Arena customerId={userId} active={view === 'chat'} target={target} onBack={() => setView('home')} />
+          <Arena customerId={userId} active={view === 'chat'} target={target} restoreConversationId={chatConvId} onConversation={setChatConvId} onBack={() => setView('home')} />
         </div>
         {view === 'whatsapp' && <WhatsApp customerId={userId} />}
         {view === 'inbox' && <Inbox active />}
