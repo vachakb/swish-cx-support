@@ -8,8 +8,15 @@ import { assessImage } from '../image';
 import { buildUserMemory } from '../memory';
 import { resolveIssue } from '../resolve';
 import type { ResolveDecision } from '../resolve';
-import type { Handler, HandlerDeps, HandlerResult, TurnContext } from '../types';
+import type { Handler, HandlerDeps, HandlerResult, Suggestion, TurnContext } from '../types';
 import { pickOrderId } from './util';
+
+// A short chip label for an order the customer can pick (first item + total) — never the raw id.
+function cancelLabel(order: Order, items: OrderItem[]): string {
+  const first = items[0];
+  const name = first ? `${first.name}${items.length > 1 ? ` +${items.length - 1}` : ''}` : 'Order';
+  return `${name} · ${formatINR(order.total)}`;
+}
 
 const CANCELLABLE = new Set(['placed', 'preparing']);
 // Yes/no parsing for the cancel confirmation step.
@@ -64,10 +71,24 @@ async function handleCancel(ctx: TurnContext, deps: HandlerDeps): Promise<Handle
     return { reply: 'Just so I get it right — should I go ahead and cancel it? (yes / no)', status: 'awaiting_user', suggestions: ['Yes, cancel it', 'No, keep it'], data: { kind: 'clarify', intent: 'cancel_order', topic: 'cancel_confirm', orderId: pending.orderId } };
   }
 
-  // Step 1 — fresh request → find the order and confirm before touching anything.
-  const orderId = ctx.orderId ?? (await pickOrderId(deps.providers, ctx.customerId, 'cancellable'));
-  if (!orderId) return { reply: "Sure — which order would you like to cancel? Tap it from your orders and I'll take it from there.", status: 'awaiting_user', data: { kind: 'clarify', intent: 'cancel_order', topic: 'cancel_pick' } };
-  const details = await deps.providers.orders.getOrderDetails(orderId);
+  // Step 1 — no specific order yet → ask the customer to pick from the orders that can still be cancelled.
+  // (We never auto-pick an order the customer didn't name for a destructive action.)
+  if (!ctx.orderId) {
+    const orders = ctx.customerId ? await deps.providers.orders.listOrdersByCustomer(ctx.customerId) : [];
+    const cancellable = orders.filter((o) => CANCELLABLE.has(o.status));
+    if (cancellable.length === 0) {
+      return { reply: "I don't see an order that can still be cancelled — once we start cooking (within a minute or two) it's on its way. If something's wrong with one that's arriving or delivered, tell me and I'll make it right.", status: 'awaiting_user' };
+    }
+    const chips: Suggestion[] = [];
+    for (const o of cancellable) {
+      const d = await deps.providers.orders.getOrderDetails(o.id);
+      chips.push({ label: cancelLabel(o, d?.items ?? []), send: 'cancel this order', orderId: o.id });
+    }
+    return { reply: 'Sure — which order would you like to cancel? Tap it below.', status: 'awaiting_user', suggestions: chips, data: { kind: 'clarify', intent: 'cancel_order', topic: 'cancel_pick' } };
+  }
+
+  // Step 1b — a specific order is in context → confirm before touching anything.
+  const details = await deps.providers.orders.getOrderDetails(ctx.orderId);
   if (!details) return { reply: "I couldn't find that order — could you double-check it?", status: 'awaiting_user' };
   const { order, items } = details;
   if (!CANCELLABLE.has(order.status)) {

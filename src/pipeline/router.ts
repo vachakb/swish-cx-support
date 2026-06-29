@@ -28,7 +28,7 @@ const RULES: Array<{ re: RegExp; intent: Intent }> = [
   { re: /charged (twice|again|two times|extra)|double[- ]?charge|over ?charg|wrong amount|deducted (twice|extra|but)|payment (failed|issue|problem|declined)/i, intent: 'order_issue' },
   { re: /(spill|spilt|leak|soak|missing|did ?n'?o?t (get|receive)|never (got|received|arrived|came|showed)|not (delivered|received)|only (got|received)|received only|wrong (order|item)|incorrect|not what i ordered|damag|broke|crush|smash|stale|rotten|tast|flavou?r|texture|bland|soggy|under ?cook|over ?cook|smell|didn'?t (taste|feel) right|isn'?t right|quality)/i, intent: 'order_issue' },
   { re: /(where('?s| is)|how (far|long)|track|\beta\b|arriv|still not here|not (yet )?(arrived|delivered)|kahan|kahaan|kab (aa|tak)|nahi aaya)/i, intent: 'order_status' },
-  { re: /\b(serviceable|deliver to|available in|do you (deliver|serve)|in my area)\b/i, intent: 'faq' },
+  { re: /serviceab|\bavail|avaial|do you (deliver|serve|operate)|deliver (to|in|near)|available (in|to|at|near)|in my area|near me/i, intent: 'faq' },
   // Checked last so substantive intents win (e.g. "thanks, but where's my order?" → order_status).
   { re: /\b(thanks|thank you|that'?s all|that'?s it|all good|nothing else|no that'?s (it|all)|bye|cheers)\b/i, intent: 'closing' },
 ];

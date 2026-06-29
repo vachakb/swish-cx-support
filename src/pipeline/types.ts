@@ -50,6 +50,10 @@ export interface TurnContext {
 
 export type TurnStatus = 'resolved' | 'awaiting_user' | 'escalated' | 'closed';
 
+// A tappable quick reply. A plain string sends itself; the object form can send different text and
+// carry an orderId, so a chip can actually *select* an order (e.g. "which order to cancel?").
+export type Suggestion = string | { label: string; send?: string; orderId?: string };
+
 export interface HandlerResult {
   reply: string;
   status: TurnStatus;
@@ -57,7 +61,7 @@ export interface HandlerResult {
   escalationReason?: string;
   data?: Record<string, unknown>; // structured payload the UI renders (eta card, refund card, …)
   polish?: boolean; // override the default: ask (or skip) the composer's voice round-trip
-  suggestions?: string[]; // tappable quick-reply options offered to the customer
+  suggestions?: Suggestion[]; // tappable quick-reply options offered to the customer
 }
 
 export interface TurnResult extends HandlerResult {

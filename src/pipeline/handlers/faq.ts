@@ -2,7 +2,8 @@ import { formatINR } from '../../core/money';
 import * as repo from '../../repositories';
 import type { Handler, HandlerDeps, HandlerResult, TurnContext } from '../types';
 
-const SERVICEABILITY = /serviceable|deliver(y)? to|available in|do you (deliver|serve)|in my area|not serviceable/i;
+const SERVICEABILITY = /serviceab|\bavail|avaial|deliver (to|in|near)|do you (deliver|serve|operate)|in my area|near me|available (in|to|at|near)/i;
+const NAMES_PLACE = /\b(in|at|to|near|around)\s+[a-z]{3,}/i;
 const REFUND_PROCESSING_MS = 5 * 24 * 60 * 60 * 1000;
 
 async function refundStatus(ctx: TurnContext, deps: HandlerDeps): Promise<HandlerResult> {
@@ -65,15 +66,15 @@ async function serviceability(text: string, deps: HandlerDeps, alreadyAsked = fa
   const areas = await repo.listServiceability();
   const hit = areas.find((a) => areaMatches(a.area, text));
   if (!hit) {
-    // Already asked once and still no match → they named a place we don't cover. Say so instead of looping.
-    if (alreadyAsked) {
+    // They named a place we don't cover (or we already asked once) → say so instead of looping.
+    if (alreadyAsked || NAMES_PLACE.test(text)) {
       return {
         reply: "We're not live in that area just yet — Swish runs across parts of Bengaluru today, and we're expanding fast. I can note your interest so you hear the moment we launch there. 💚",
         status: 'resolved',
         data: { kind: 'serviceability', serviceable: false },
       };
     }
-    // Ask once, set the context, and mark it so the follow-up routes back here as the area answer.
+    // No specific place yet → ask once, set the context, and mark it so the follow-up routes back here.
     return {
       reply: "Swish is live across parts of Bengaluru right now. Which area are you in, and I'll confirm we deliver there?",
       status: 'awaiting_user',

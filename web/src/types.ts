@@ -83,8 +83,11 @@ export interface TurnResult {
   latencyMs: number;
   action?: { type: string };
   data?: Record<string, unknown>;
-  suggestions?: string[];
+  suggestions?: Suggestion[];
 }
+
+// A quick-reply chip: a plain string sends itself; the object form can carry an orderId so the chip selects an order.
+export type Suggestion = string | { label: string; send?: string; orderId?: string };
 
 export interface ChatResponse {
   result: TurnResult;

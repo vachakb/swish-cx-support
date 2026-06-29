@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { ensureNotifyPermission, notify } from '../notify';
-import type { Message, OrderWithItems, Trace } from '../types';
+import type { Message, OrderWithItems, Suggestion, Trace } from '../types';
 import { Composer } from './Composer';
 import { Intake } from './Intake';
 import type { IntakeResult } from './Intake';
@@ -35,7 +35,7 @@ export function Arena({ customerId, active, target, restoreConversationId, onCon
   const [trace, setTrace] = useState<Trace | null>(null);
   const [status, setStatus] = useState<string>();
   const [sending, setSending] = useState(false);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [mode, setMode] = useState<'intake' | 'chat'>('intake');
   const [intakeSeq, setIntakeSeq] = useState(0);
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
@@ -206,9 +206,14 @@ export function Arena({ customerId, active, target, restoreConversationId, onCon
             {suggestions.length > 0 && (
               <div className="border-t border-neutral-100 bg-white px-4 py-2.5">
                 <div className="mx-auto flex w-full max-w-2xl flex-wrap gap-2">
-                  {suggestions.map((s) => (
-                    <button key={s} type="button" onClick={() => void send(s)} className="rounded-full border border-swish-200 bg-swish-50 px-3.5 py-1.5 text-sm font-medium text-swish-700 transition hover:bg-swish-100">{s}</button>
-                  ))}
+                  {suggestions.map((s) => {
+                    const label = typeof s === 'string' ? s : s.label;
+                    const text = typeof s === 'string' ? s : s.send ?? s.label;
+                    const oid = typeof s === 'string' ? undefined : s.orderId;
+                    return (
+                      <button key={label} type="button" onClick={() => { if (oid) setOrderId(oid); void send(text, undefined, true, oid ?? orderId); }} className="rounded-full border border-swish-200 bg-swish-50 px-3.5 py-1.5 text-sm font-medium text-swish-700 transition hover:bg-swish-100">{label}</button>
+                    );
+                  })}
                 </div>
               </div>
             )}
