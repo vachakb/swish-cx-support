@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './api';
 import { Arena } from './components/Arena';
 import type { ChatTarget } from './components/Arena';
@@ -28,6 +28,8 @@ export default function App() {
   const [userName, setUserName] = useState('');
   const [target, setTarget] = useState<ChatTarget>(() => loadSession().target ?? {});
   const [chatConvId, setChatConvId] = useState<string | undefined>(() => loadSession().convId);
+  const [agentToast, setAgentToast] = useState<string | null>(null);
+  const viewRef = useRef(view);
 
   useEffect(() => {
     api.profiles().then((p) => { setUserId(p[0]?.id); setUserName(p[0]?.name ?? ''); }).catch(() => {});
@@ -40,6 +42,17 @@ export default function App() {
       /* ignore */
     }
   }, [view, target, chatConvId]);
+
+  // A human replied while we're not on the chat → show an in-app toast (works even when the tab is focused / notifications are off).
+  useEffect(() => { viewRef.current = view; }, [view]);
+  const onAgentReply = useCallback((text: string) => {
+    if (viewRef.current !== 'chat') setAgentToast(text);
+  }, []);
+  useEffect(() => {
+    if (!agentToast) return;
+    const id = setTimeout(() => setAgentToast(null), 8000);
+    return () => clearTimeout(id);
+  }, [agentToast]);
 
   function openChat(orderId?: string) {
     setTarget({ orderId });
@@ -86,11 +99,23 @@ export default function App() {
         {view === 'home' && <Home customerId={userId} onOpenChat={openChat} onResumeThread={resume} />}
         {/* The chat stays mounted so it keeps polling and can notify while you're elsewhere. */}
         <div className={view === 'chat' ? 'h-full' : 'hidden'}>
-          <Arena customerId={userId} active={view === 'chat'} target={target} restoreConversationId={chatConvId} onConversation={setChatConvId} onBack={() => setView('home')} />
+          <Arena customerId={userId} active={view === 'chat'} target={target} restoreConversationId={chatConvId} onConversation={setChatConvId} onAgentReply={onAgentReply} onBack={() => setView('home')} />
         </div>
         {view === 'whatsapp' && <WhatsApp customerId={userId} />}
         {view === 'inbox' && <Inbox active />}
       </main>
+
+      {agentToast && (
+        <div className="fixed bottom-5 right-5 z-50 flex max-w-sm animate-fade-in items-start gap-3 rounded-2xl border border-neutral-200 bg-white p-4 shadow-soft">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-amber-100 text-amber-700">💬</span>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold text-neutral-900">New reply from Swish Support</div>
+            <div className="mt-0.5 line-clamp-2 text-sm text-neutral-500">{agentToast}</div>
+            <button type="button" onClick={() => { setAgentToast(null); setView('chat'); }} className="mt-2 text-sm font-semibold text-swish-700">View conversation →</button>
+          </div>
+          <button type="button" onClick={() => setAgentToast(null)} className="text-neutral-400 hover:text-neutral-600">✕</button>
+        </div>
+      )}
     </div>
   );
 }

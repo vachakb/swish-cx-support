@@ -22,12 +22,13 @@ interface ArenaProps {
   target: ChatTarget;
   restoreConversationId?: string;
   onConversation?: (id: string | undefined) => void;
+  onAgentReply?: (text: string) => void;
   onBack?: () => void;
 }
 
 const localMsg = (role: Message['role'], text: string, image?: string): Message => ({ id: crypto.randomUUID(), role, text, image, createdAt: '' });
 
-export function Arena({ customerId, active, target, restoreConversationId, onConversation, onBack }: ArenaProps) {
+export function Arena({ customerId, active, target, restoreConversationId, onConversation, onAgentReply, onBack }: ArenaProps) {
   const [conversationId, setConversationId] = useState<string>();
   const [orderId, setOrderId] = useState<string>();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -41,6 +42,8 @@ export function Arena({ customerId, active, target, restoreConversationId, onCon
   const [ordersLoaded, setOrdersLoaded] = useState(false);
   const seenAgent = useRef<Set<string>>(new Set());
   const booted = useRef(false);
+  const onAgentReplyRef = useRef(onAgentReply);
+  onAgentReplyRef.current = onAgentReply;
 
   // Load the customer's orders once — used by the order/item pickers.
   useEffect(() => {
@@ -107,7 +110,9 @@ export function Arena({ customerId, active, target, restoreConversationId, onCon
         if (fresh.length === 0) return;
         fresh.forEach((m) => seenAgent.current.add(m.id));
         setMessages((cur) => [...cur, ...fresh.map((m) => ({ id: m.id, role: 'agent' as const, text: m.text, createdAt: m.createdAt }))]);
-        if (!active || document.hidden) notify('Swish Support', fresh[fresh.length - 1]!.text);
+        const last = fresh[fresh.length - 1]!.text;
+        if (!active || document.hidden) notify('Swish Support', last);
+        onAgentReplyRef.current?.(last);
       } catch {
         /* ignore */
       }
