@@ -7,6 +7,12 @@ export interface ImageInput {
   dataBase64: string;
 }
 
+export interface LlmUsage {
+  model: string;
+  promptTokens: number;
+  outputTokens: number;
+}
+
 export interface LlmRequest {
   system?: string;
   prompt: string;
@@ -14,6 +20,7 @@ export interface LlmRequest {
   task?: string; // hint the mock uses to pick a deterministic responder
   images?: ImageInput[];
   signal?: AbortSignal;
+  onUsage?: (usage: LlmUsage) => void; // called once per model call with token counts (for tracing)
 }
 
 export interface LlmProvider {

@@ -11,4 +11,4 @@ export function createLlm(mockHandlers?: MockHandlers): LlmProvider {
 
 export { createMockLlm } from './mock';
 export type { MockHandlers, JsonResponder, TextResponder } from './mock';
-export type { ImageInput, LlmProvider, LlmRequest, ModelTier } from './types';
+export type { ImageInput, LlmProvider, LlmRequest, LlmUsage, ModelTier } from './types';

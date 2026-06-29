@@ -6,6 +6,7 @@ import { polish } from './compose';
 import { checkInput, checkOutput } from './guardrails';
 import { getHandler } from './handlers';
 import { deriveTitle } from './lifecycle';
+import { meteredLlm } from './metered-llm';
 import { detectLanguage, detectSentiment, route, ruleIntent } from './router';
 import { Tracer } from './tracer';
 import type { HandlerResult, Intent, RouteResult, TurnContext, TurnInput, TurnResult } from './types';
@@ -42,6 +43,8 @@ export async function runTurn(input: TurnInput, deps: EngineDeps): Promise<TurnR
 
   const tracer = new Tracer(conversation.id);
   tracer.note('llm', { provider: deps.llm.name });
+  // Every model call this turn records its model/tokens/cost into the trace, automatically.
+  const llm = meteredLlm(deps.llm, tracer);
 
   const history = await repo.listMessages(conversation.id);
   // Dialogue state for "midflow intent switching": a clarifying turn marks itself with kind:'clarify'
@@ -55,7 +58,7 @@ export async function runTurn(input: TurnInput, deps: EngineDeps): Promise<TurnR
 
   let routed: RouteResult;
   try {
-    routed = await tracer.step('route', () => route(gate.text, deps.llm, undefined, pending));
+    routed = await tracer.step('route', () => route(gate.text, llm, undefined, pending));
   } catch {
     // LLM routing failed — fall back to rules (or 'unknown') so we still respond gracefully.
     routed = { intent: ruleIntent(gate.text) ?? 'unknown', confidence: 0.3, sentiment: detectSentiment(gate.text), language: detectLanguage(gate.text) };
@@ -79,7 +82,7 @@ export async function runTurn(input: TurnInput, deps: EngineDeps): Promise<TurnR
   const handler = getHandler(routed.intent);
   let result: HandlerResult;
   try {
-    result = await tracer.step(`handle:${routed.intent}`, () => handler.handle(ctx, { llm: deps.llm, providers: deps.providers, tracer }));
+    result = await tracer.step(`handle:${routed.intent}`, () => handler.handle(ctx, { llm, providers: deps.providers, tracer }));
   } catch {
     result = { reply: 'Something went wrong on my side — let me get a teammate to help you right away.', status: 'escalated', escalationReason: 'handler error' };
   }
@@ -88,7 +91,7 @@ export async function runTurn(input: TurnInput, deps: EngineDeps): Promise<TurnR
   // Polish is an extra model round-trip, so spend it only where natural language adds value —
   // order issues and escalations. Happy-path fact replies use their on-brand templates (instant).
   const wantsPolish = result.polish ?? (routed.intent === 'order_issue' || result.status === 'escalated');
-  const composed = wantsPolish ? await tracer.step('compose', () => polish(deps.llm, result.reply)) : result.reply;
+  const composed = wantsPolish ? await tracer.step('compose', () => polish(llm, result.reply)) : result.reply;
   const checked = checkOutput(composed);
   const reply = checked.ok ? checked.text : checkOutput(result.reply).ok ? result.reply : 'Let me connect you with a teammate to make sure this is handled properly.';
 

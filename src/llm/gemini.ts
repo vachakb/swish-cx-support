@@ -38,7 +38,10 @@ export function createGeminiLlm(apiKey: string): LlmProvider {
     for (const model of dedupe(candidates)) {
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
-          return await ai.models.generateContent({ model, contents: contents(req), config: cfg });
+          const res = await ai.models.generateContent({ model, contents: contents(req), config: cfg });
+          const usage = res.usageMetadata;
+          req.onUsage?.({ model, promptTokens: usage?.promptTokenCount ?? 0, outputTokens: usage?.candidatesTokenCount ?? 0 });
+          return res;
         } catch (e) {
           lastErr = e;
           if (!isTransient(e)) throw e;
