@@ -155,6 +155,8 @@ export function Arena({ customerId, active, target, restoreConversationId, onCon
       setStatus(result.status);
       setSuggestions(result.suggestions ?? []);
       setMessages((m) => [...m, localMsg('assistant', result.reply)]);
+      // If the customer left the chat before the reply landed, surface it like any other Swish reply.
+      if (!activeRef.current || document.hidden) { notify('Swish Support', result.reply); onAgentReplyRef.current?.(result.reply); }
     } catch {
       setMessages((m) => [...m, localMsg('assistant', 'Sorry — I had trouble reaching support just now. Please try again.')]);
     } finally {
