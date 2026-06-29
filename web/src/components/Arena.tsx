@@ -71,8 +71,13 @@ export function Arena({ customerId, active, target, restoreConversationId, onCon
     setIntakeSeq((n) => n + 1);
   }
 
-  // Each open (Need Help / Chat / reopen) arrives as a fresh target object → re-initialise.
+  // Each open (Need Help / Chat / reopen) arrives as a fresh target object → re-initialise. Guard against
+  // re-running for the SAME target (StrictMode double-invoke / unrelated re-renders), which would clobber
+  // a restored chat with a fresh intake.
+  const lastTarget = useRef<ChatTarget | null>(null);
   useEffect(() => {
+    if (lastTarget.current === target) return;
+    lastTarget.current = target;
     if (!booted.current) {
       booted.current = true;
       if (restoreConversationId) { void loadThread(restoreConversationId); return; } // restore the active chat on refresh
@@ -82,8 +87,11 @@ export function Arena({ customerId, active, target, restoreConversationId, onCon
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target]);
 
-  // Report the active conversation up so it survives a page refresh.
+  // Report the active conversation up so it survives a page refresh. Skip the mount-time `undefined` so we
+  // don't wipe the persisted id before the restore has loaded it.
+  const convReported = useRef(false);
   useEffect(() => {
+    if (!convReported.current) { convReported.current = true; if (conversationId === undefined) return; }
     onConversation?.(conversationId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId]);
@@ -98,7 +106,8 @@ export function Arena({ customerId, active, target, restoreConversationId, onCon
       setStatus(conversation.status);
       setMode('chat');
     } catch {
-      /* ignore */
+      // The saved conversation is gone (e.g. after a reseed) — fall back to a fresh start, not a stuck empty screen.
+      beginIntake(target.orderId);
     }
   }
 
