@@ -2,6 +2,7 @@ import { GoogleGenAI } from '@google/genai';
 import * as z from 'zod';
 import type { ZodType } from 'zod';
 import { config } from '../config';
+import { redactPii } from '../core/redact';
 import type { LlmProvider, LlmRequest } from './types';
 
 // Faithful to @google/genai v2 `ai.models.*`. Verify against ai.google.dev when a key is present;
@@ -15,7 +16,8 @@ export function createGeminiLlm(apiKey: string): LlmProvider {
   const ai = new GoogleGenAI({ apiKey });
 
   const contents = (req: LlmRequest) => {
-    const parts: Array<Record<string, unknown>> = [{ text: req.prompt }];
+    // Strip PII (phone/email/UPI/card) before it leaves for a third-party model — the agent never needs it.
+    const parts: Array<Record<string, unknown>> = [{ text: redactPii(req.prompt) }];
     for (const img of req.images ?? []) parts.push({ inlineData: { mimeType: img.mimeType, data: img.dataBase64 } });
     return [{ role: 'user', parts }];
   };

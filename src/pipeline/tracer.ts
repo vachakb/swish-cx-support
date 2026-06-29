@@ -1,6 +1,7 @@
 import { db } from '../db/client';
 import { id } from '../db/ids';
 import { traces } from '../db/schema';
+import { redactRecord } from '../core/redact';
 import type { TraceStep } from '../types';
 
 // Per-turn trace: times each stage, powers the UI debug panel and the bake-off's latency numbers.
@@ -24,7 +25,8 @@ export class Tracer {
   }
 
   note(stage: string, data: Record<string, unknown>): void {
-    this.steps.push({ stage, ms: 0, data });
+    // Redact PII so it never lands in a persisted trace / debug log.
+    this.steps.push({ stage, ms: 0, data: redactRecord(data) });
   }
 
   get latencyMs(): number {
