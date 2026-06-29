@@ -28,7 +28,7 @@ export default function App() {
   const [userName, setUserName] = useState('');
   const [target, setTarget] = useState<ChatTarget>(() => loadSession().target ?? {});
   const [chatConvId, setChatConvId] = useState<string | undefined>(() => loadSession().convId);
-  const [agentToast, setAgentToast] = useState<string | null>(null);
+  const [agentToast, setAgentToast] = useState<{ text: string; conversationId?: string } | null>(null);
   const viewRef = useRef(view);
 
   useEffect(() => {
@@ -46,8 +46,24 @@ export default function App() {
   // A human replied while we're not on the chat → show an in-app toast (works even when the tab is focused / notifications are off).
   useEffect(() => { viewRef.current = view; }, [view]);
   const onAgentReply = useCallback((text: string) => {
-    if (viewRef.current !== 'chat') setAgentToast(text);
+    if (viewRef.current !== 'chat') setAgentToast({ text });
   }, []);
+
+  // Proactive notifications about any of the customer's orders (e.g. a late-order heads-up), delivered
+  // wherever they are in the app — not tied to the chat they happen to have open.
+  useEffect(() => {
+    if (!userId) return;
+    const es = new EventSource(`/api/customers/${userId}/events`);
+    es.addEventListener('message', (e) => {
+      try {
+        const ev = JSON.parse(e.data) as { conversationId: string; text: string };
+        setAgentToast({ text: ev.text, conversationId: ev.conversationId });
+      } catch {
+        /* ignore a malformed frame */
+      }
+    });
+    return () => es.close();
+  }, [userId]);
   useEffect(() => {
     if (!agentToast) return;
     const id = setTimeout(() => setAgentToast(null), 8000);
@@ -109,9 +125,9 @@ export default function App() {
         <div className="fixed bottom-5 right-5 z-50 flex max-w-sm animate-fade-in items-start gap-3 rounded-2xl border border-neutral-200 bg-white p-4 shadow-soft">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-amber-100 text-amber-700">💬</span>
           <div className="min-w-0 flex-1">
-            <div className="text-sm font-semibold text-neutral-900">New reply from Swish Support</div>
-            <div className="mt-0.5 line-clamp-2 text-sm text-neutral-500">{agentToast}</div>
-            <button type="button" onClick={() => { setAgentToast(null); setView('chat'); }} className="mt-2 text-sm font-semibold text-swish-700">View conversation →</button>
+            <div className="text-sm font-semibold text-neutral-900">Swish Support</div>
+            <div className="mt-0.5 line-clamp-2 text-sm text-neutral-500">{agentToast.text}</div>
+            <button type="button" onClick={() => { const cid = agentToast.conversationId; setAgentToast(null); if (cid) resume(cid); else setView('chat'); }} className="mt-2 text-sm font-semibold text-swish-700">View conversation →</button>
           </div>
           <button type="button" onClick={() => setAgentToast(null)} className="text-neutral-400 hover:text-neutral-600">✕</button>
         </div>

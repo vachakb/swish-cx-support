@@ -108,6 +108,12 @@ export async function runTurn(input: TurnInput, deps: EngineDeps): Promise<TurnR
   });
   await tracer.finalize({ messageId: assistantMsg.id, intent: routed.intent, confidence: routed.confidence, sentiment: routed.sentiment });
 
+  // Frustration-aware handoff: if the customer is angry and we're not already escalating, proactively
+  // surface a human option (the #1 complaint about support bots is being unable to reach a person).
+  const hasHumanOption = (result.suggestions ?? []).some((s) => /person|human|agent|teammate|someone/i.test(typeof s === 'string' ? s : s.label));
+  const suggestions =
+    routed.sentiment === 'angry' && result.status !== 'escalated' && !hasHumanOption ? [...(result.suggestions ?? []), 'Talk to a person'] : result.suggestions;
+
   return {
     conversationId: conversation.id,
     traceId: tracer.traceId,
@@ -116,7 +122,7 @@ export async function runTurn(input: TurnInput, deps: EngineDeps): Promise<TurnR
     action: result.action,
     escalationReason: result.escalationReason,
     data: result.data,
-    suggestions: result.suggestions,
+    suggestions,
     intent: routed.intent,
     sentiment: routed.sentiment,
     latencyMs: tracer.latencyMs,

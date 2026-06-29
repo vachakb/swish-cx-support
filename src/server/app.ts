@@ -5,7 +5,7 @@ import { engine } from '../app';
 import { buildSendPayload, parseInbound, sendMessage, verifyWebhook } from '../channels/whatsapp';
 import { config } from '../config';
 import { channels, conversationStatuses, orderStatuses } from '../db/schema';
-import { publishMessage, subscribeMessages } from '../notifications/bus';
+import { publishMessage, subscribeCustomer, subscribeMessages } from '../notifications/bus';
 import * as repo from '../repositories';
 
 const REFUND_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
@@ -73,6 +73,23 @@ app.get('/api/conversations/:id/events', (c) =>
     });
     stream.onAbort(unsub);
     // Hold the connection open; a periodic ping stops idle proxies from dropping it.
+    while (!c.req.raw.signal.aborted) {
+      await stream.sleep(25_000);
+      await stream.writeSSE({ event: 'ping', data: '' });
+    }
+    unsub();
+  }),
+);
+
+// Customer-level stream (SSE): proactive notifications about any of the customer's orders — e.g. a
+// "your order's running late" nudge — delivered wherever they are in the app, not just an open chat.
+app.get('/api/customers/:id/events', (c) =>
+  streamSSE(c, async (stream) => {
+    const id = c.req.param('id');
+    const unsub = subscribeCustomer(id, (e) => {
+      void stream.writeSSE({ event: 'message', data: JSON.stringify(e) });
+    });
+    stream.onAbort(unsub);
     while (!c.req.raw.signal.aborted) {
       await stream.sleep(25_000);
       await stream.writeSSE({ event: 'ping', data: '' });

@@ -2,6 +2,7 @@ import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { config } from './config';
 import { app } from './server/app';
+import { startProactiveOutreach } from './server/proactive';
 import { startInactivitySweeper } from './server/sweeper';
 
 // In production, serve the built web app (with SPA fallback) after the API routes.
@@ -16,3 +17,5 @@ serve({ fetch: app.fetch, port: config.port }, (info) => {
 
 // Close + sign off chats that have gone quiet — owned by the service, not triggered by a page load.
 startInactivitySweeper();
+// Reach out about orders running late before the customer has to ask.
+startProactiveOutreach();

@@ -31,6 +31,10 @@ export async function getOrderDetails(oid: string): Promise<OrderDetails | undef
 export const listOrdersByCustomer = (customerId: string) =>
   db.select().from(orders).where(eq(orders.customerId, customerId)).orderBy(desc(orders.placedAt)).all();
 
+// In-transit orders across all customers — scanned by the proactive late-order job.
+export const listInTransitOrders = () =>
+  db.select().from(orders).where(inArray(orders.status, ['packed', 'dispatched', 'arriving'])).all();
+
 export type OrderWithItems = Order & { items: OrderItem[] };
 
 export async function getOrdersWithItems(customerId: string): Promise<OrderWithItems[]> {
