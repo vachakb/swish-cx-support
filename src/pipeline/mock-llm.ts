@@ -1,5 +1,6 @@
 import type { MockHandlers } from '../llm';
 import type { VisionScore } from '../types';
+import type { KnowledgeAnswer } from './knowledge';
 import type { ResolveDecision } from './resolve';
 import type { WismoDecision } from './wismo';
 import { detectLanguage, detectSentiment, ruleIntent, tailIntent } from './router';
@@ -40,6 +41,17 @@ export function buildMockHandlers(): MockHandlers {
         severity: 0.8,
         confidence: 0.75,
       }),
+      // Deterministic stand-in for the grounded knowledge agent (the real reasoning is Gemini's).
+      knowledge: (req): KnowledgeAnswer => {
+        const q = (req.prompt.match(/Customer's question: "([^"]*)"/)?.[1] ?? req.prompt).toLowerCase();
+        if (/koramangala|indiranagar|hsr/.test(q)) return { reply: 'Yes — we deliver there! Go ahead and order. 💚', needsFollowup: false };
+        if (/delhi|mumbai|kolkata|chennai|hyderabad|pune|ahmedabad|jaipur|noida|gurgaon|goa/.test(q)) {
+          return { reply: "We're not live there yet — Swish runs across parts of Bengaluru today, and we're expanding fast. I can note your interest so you hear when we launch! 💚", needsFollowup: false };
+        }
+        if (/deliver|available|serviceable|\barea\b/.test(q)) return { reply: 'Swish is live across parts of Bengaluru. Which area are you in, and I\'ll confirm we deliver there?', needsFollowup: true };
+        if (/refer|reward|invite/.test(q)) return { reply: "Your referral rewards show up in your Swish wallet — you've got ₹50 on the way once a friend's first order is delivered. Share code ARJUN150 to earn more!", needsFollowup: false };
+        return { reply: 'Happy to help! Could you tell me a little more about what you need?', needsFollowup: false };
+      },
       // Heuristic stand-in for the resolution agent: ask once when there's no evidence,
       // then propose a modest partial credit. (The real intelligence is Gemini's.)
       resolve: (req): ResolveDecision => {

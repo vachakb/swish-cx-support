@@ -1,12 +1,12 @@
 import { formatINR } from '../../core/money';
 import * as repo from '../../repositories';
+import { answerKnowledge } from '../knowledge';
 import type { Handler, HandlerDeps, HandlerResult, TurnContext } from '../types';
 
-const SERVICEABILITY = /serviceab|\bavail|avaial|deliver (to|in|near)|do you (deliver|serve|operate)|in my area|near me|available (in|to|at|near)/i;
-const NAMES_PLACE = /\b(in|at|to|near|around)\s+[a-z]{3,}/i;
 const REFUND_PROCESSING_MS = 5 * 24 * 60 * 60 * 1000;
 
-async function refundStatus(ctx: TurnContext, deps: HandlerDeps): Promise<HandlerResult> {
+// Refund status is a precise, factual lookup — kept deterministic rather than handed to the LLM.
+async function refundStatus(ctx: TurnContext): Promise<HandlerResult> {
   if (!ctx.customerId) return { reply: 'Happy to check your refund status — could you confirm your account?', status: 'awaiting_user' };
   const all = await repo.listResolutionsByCustomer(ctx.customerId);
   const claims = all.filter((r) => r.type === 'refund' || r.type === 'credit');
@@ -26,88 +26,19 @@ async function refundStatus(ctx: TurnContext, deps: HandlerDeps): Promise<Handle
   };
 }
 
-function areaMatches(area: string, text: string): boolean {
-  return area
-    .toLowerCase()
-    .split(' ')
-    .some((token) => token.length > 2 && new RegExp(`\\b${token}\\b`, 'i').test(text));
-}
-
-async function referralStatus(ctx: TurnContext, deps: HandlerDeps): Promise<HandlerResult> {
-  if (!ctx.customerId) {
-    return { reply: 'Happy to check your referral reward — could you confirm the number on your Swish account?', status: 'awaiting_user' };
-  }
-  const wallet = await deps.providers.wallet.getWallet(ctx.customerId);
-  if (!wallet) {
-    return { reply: "I couldn't pull up your rewards just now — let me get a teammate to check.", status: 'escalated', escalationReason: 'wallet lookup failed' };
-  }
-  if (wallet.referralRewardPending > 0) {
-    return {
-      reply: `You've got ${formatINR(wallet.referralRewardPending)} in referral rewards on the way! It lands in your Swish balance the moment your friend's first order is delivered. (Your code: ${wallet.referralCode})`,
-      status: 'resolved',
-      data: { kind: 'referral', pending: wallet.referralRewardPending, earned: wallet.referralRewardEarned },
-    };
-  }
-  if (wallet.referralRewardEarned > 0) {
-    return {
-      reply: `Your referral rewards (${formatINR(wallet.referralRewardEarned)}) are already in your Swish balance. Share code ${wallet.referralCode} to earn more!`,
-      status: 'resolved',
-      data: { kind: 'referral', earned: wallet.referralRewardEarned },
-    };
-  }
-  return {
-    reply: `No referral rewards yet — share your code ${wallet.referralCode} and you'll get ₹50 once a friend's first order is delivered.`,
-    status: 'resolved',
-    data: { kind: 'referral' },
-  };
-}
-
-async function serviceability(text: string, deps: HandlerDeps, alreadyAsked = false): Promise<HandlerResult> {
-  const areas = await repo.listServiceability();
-  const hit = areas.find((a) => areaMatches(a.area, text));
-  if (!hit) {
-    // They named a place we don't cover (or we already asked once) → say so instead of looping.
-    if (alreadyAsked || NAMES_PLACE.test(text)) {
-      return {
-        reply: "We're not live in that area just yet — Swish runs across parts of Bengaluru today, and we're expanding fast. I can note your interest so you hear the moment we launch there. 💚",
-        status: 'resolved',
-        data: { kind: 'serviceability', serviceable: false },
-      };
-    }
-    // No specific place yet → ask once, set the context, and mark it so the follow-up routes back here.
-    return {
-      reply: "Swish is live across parts of Bengaluru right now. Which area are you in, and I'll confirm we deliver there?",
-      status: 'awaiting_user',
-      data: { kind: 'clarify', intent: 'faq', topic: 'serviceability' },
-    };
-  }
-  if (hit.serviceable) {
-    return {
-      reply: `Yes — Swish delivers in ${hit.area}! If the app ever says otherwise for you, tell me and I'll dig into it.`,
-      status: 'resolved',
-      data: { kind: 'serviceability', area: hit.area, serviceable: true },
-    };
-  }
-  return {
-    reply: `We're not live in ${hit.area} just yet${hit.note ? ` (${hit.note})` : ''} — but we're expanding fast. I can note your interest so you hear the moment we launch there.`,
-    status: 'resolved',
-    data: { kind: 'serviceability', area: hit.area, serviceable: false },
-  };
-}
-
 export const faqHandler: Handler = {
   intents: ['faq', 'referral_status', 'refund_status'],
   async handle(ctx, deps) {
-    if (ctx.route.intent === 'referral_status') return referralStatus(ctx, deps);
-    if (ctx.route.intent === 'refund_status') return refundStatus(ctx, deps);
-    const text = ctx.input.text;
-    // If our last turn asked "which area?", treat this reply as the area (even if it doesn't look like a serviceability query).
-    const lastBot = [...ctx.history].reverse().find((m) => m.role === 'assistant');
-    const clarify = lastBot?.payload as { kind?: string; topic?: string } | null | undefined;
-    const resumingArea = clarify?.kind === 'clarify' && clarify.topic === 'serviceability';
-    if (resumingArea || SERVICEABILITY.test(text)) return serviceability(text, deps, resumingArea);
-    const article = await repo.searchFaq(text); // DB-backed; same content as the self-serve Help module
-    if (article) return { reply: article.answer, status: 'resolved', data: { kind: 'faq', id: article.id } };
-    return { reply: 'Happy to help! Is this about referrals, serviceable areas, cancellations, or an order?', status: 'awaiting_user' };
+    if (ctx.route.intent === 'refund_status') return refundStatus(ctx);
+    // Serviceability, referrals, how-tos: the LLM answers the SPECIFIC question grounded in real facts
+    // (areas we serve, the customer's referral data, the help articles) — no keyword→canned-response.
+    const answer = await answerKnowledge({ llm: deps.llm, message: ctx.input.text, history: ctx.history.slice(0, -1), customerId: ctx.customerId, providers: deps.providers });
+    return {
+      reply: answer.reply,
+      status: answer.needsFollowup ? 'awaiting_user' : 'resolved',
+      polish: false,
+      // When it asks a follow-up (e.g. "which area?"), mark it so the reply routes back here in context.
+      data: answer.needsFollowup ? { kind: 'clarify', intent: 'faq', topic: 'knowledge' } : { kind: 'faq' },
+    };
   },
 };

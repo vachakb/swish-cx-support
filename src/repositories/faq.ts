@@ -15,6 +15,12 @@ export async function listFaqCategories(): Promise<FaqCategory[]> {
   }));
 }
 
+// All articles, flat — used to ground the LLM knowledge answer.
+export async function listFaqArticles(): Promise<FaqArticle[]> {
+  const arts = await db.select().from(faqArticles).orderBy(asc(faqArticles.sortOrder)).all();
+  return arts.map((a) => ({ id: a.id, question: a.question, answer: a.answer, tags: a.tags ?? [] }));
+}
+
 const lower = (s: string) => s.toLowerCase();
 
 // Lightweight keyword scorer over the DB-backed articles; swap for embeddings if the corpus grows.
