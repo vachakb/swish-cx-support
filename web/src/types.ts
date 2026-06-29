@@ -77,7 +77,7 @@ export interface TurnResult {
   conversationId: string;
   traceId: string;
   reply: string;
-  status: 'resolved' | 'awaiting_user' | 'escalated';
+  status: 'resolved' | 'awaiting_user' | 'escalated' | 'closed';
   intent: string;
   sentiment: string;
   latencyMs: number;

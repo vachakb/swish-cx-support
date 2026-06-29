@@ -36,6 +36,7 @@ export interface TurnInput {
   channel: 'web' | 'whatsapp';
   text: string;
   image?: { mimeType: string; dataBase64: string };
+  intake?: { role: 'user' | 'assistant'; text: string }[]; // guided-intake transcript to persist on the first turn
 }
 
 export interface TurnContext {
@@ -47,7 +48,7 @@ export interface TurnContext {
   orderId?: string;
 }
 
-export type TurnStatus = 'resolved' | 'awaiting_user' | 'escalated';
+export type TurnStatus = 'resolved' | 'awaiting_user' | 'escalated' | 'closed';
 
 export interface HandlerResult {
   reply: string;

@@ -28,7 +28,12 @@ async function loadOrCreate(input: TurnInput): Promise<Conversation> {
 
 export async function runTurn(input: TurnInput, deps: EngineDeps): Promise<TurnResult> {
   const conversation = await loadOrCreate(input);
-  await repo.addMessage({ conversationId: conversation.id, role: 'user', text: input.text });
+  // Persist the guided-intake transcript (chip selections) on the first turn so a reopened thread shows the full flow.
+  if (input.intake?.length) {
+    for (const b of input.intake) await repo.addMessage({ conversationId: conversation.id, role: b.role, text: b.text });
+  } else {
+    await repo.addMessage({ conversationId: conversation.id, role: 'user', text: input.text });
+  }
 
   // Garbage-in guard runs before any model call.
   const gate = checkInput(input.text);
@@ -88,8 +93,8 @@ export async function runTurn(input: TurnInput, deps: EngineDeps): Promise<TurnR
   const reply = checked.ok ? checked.text : checkOutput(result.reply).ok ? result.reply : 'Let me connect you with a teammate to make sure this is handled properly.';
 
   const assistantMsg = await repo.addMessage({ conversationId: conversation.id, role: 'assistant', text: reply, payload: result.data ?? null, traceId: tracer.traceId });
-  // 'closing' archives the thread; otherwise it follows the turn's status.
-  const convStatus = routed.intent === 'closing' ? 'closed' : result.status;
+  // The conversation status follows the turn (handlers decide; closing confirms before it returns 'closed').
+  const convStatus = result.status;
   await repo.updateConversation(conversation.id, {
     status: convStatus,
     sentiment: routed.sentiment,

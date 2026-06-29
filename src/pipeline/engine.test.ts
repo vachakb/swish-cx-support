@@ -30,17 +30,17 @@ describe('pipeline runTurn (mock LLM)', () => {
     expect(r1.status).toBe('awaiting_user'); // gathers info first — no blind credit
     expect(r1.action).toBeUndefined();
     expect(r1.reply).toMatch(/\?/);
-    const r2 = await runTurn({ channel: 'web', customerId: 'pc_trust', orderId: 'po_delivered', conversationId: r1.conversationId, text: 'the paneer roll spilled everywhere and was soaked' }, deps);
-    expect(r2.status).toBe('resolved');
+    const r2 = await runTurn({ channel: 'web', customerId: 'pc_trust', orderId: 'po_delivered', conversationId: r1.conversationId, text: 'the paneer roll spilled everywhere and was soaked', image: { mimeType: 'image/jpeg', dataBase64: 'aGVsbG8=' } }, deps);
+    expect(r2.status).toBe('resolved'); // photo = proof → credit
     expect(r2.action?.type).toBe('credit');
   });
 
   it('escalates a high-velocity (fraudy) account once it proposes an action', async () => {
     const r1 = await runTurn({ channel: 'web', customerId: 'pc_fraud', orderId: 'po_fraud_delivered', text: 'I got the wrong item' }, deps);
     expect(r1.status).toBe('awaiting_user');
-    const r2 = await runTurn({ channel: 'web', customerId: 'pc_fraud', orderId: 'po_fraud_delivered', conversationId: r1.conversationId, text: 'it was completely the wrong item, please refund me' }, deps);
+    const r2 = await runTurn({ channel: 'web', customerId: 'pc_fraud', orderId: 'po_fraud_delivered', conversationId: r1.conversationId, text: 'it was completely the wrong item, please refund me', image: { mimeType: 'image/jpeg', dataBase64: 'aGVsbG8=' } }, deps);
     expect(r2.intent).toBe('order_issue');
-    expect(r2.status).toBe('escalated');
+    expect(r2.status).toBe('escalated'); // photo present → reaches policy → fraud velocity trips
   });
 
   it('answers the referral-reward hybrid from wallet data', async () => {
@@ -86,10 +86,12 @@ describe('pipeline runTurn (mock LLM)', () => {
     expect(r.action?.type).toBe('credit');
   });
 
-  it('archives the thread when the customer says they are done', async () => {
-    const r = await runTurn({ channel: 'web', customerId: 'pc_trust', text: "thanks, that's all!" }, deps);
-    expect(r.intent).toBe('closing');
-    expect((await getConversation(r.conversationId))?.status).toBe('closed');
+  it('confirms before closing, then archives the thread', async () => {
+    const r1 = await runTurn({ channel: 'web', customerId: 'pc_trust', text: "thanks, that's all!" }, deps);
+    expect(r1.intent).toBe('closing');
+    expect(r1.status).toBe('awaiting_user'); // asks "anything else?" first
+    const r2 = await runTurn({ channel: 'web', customerId: 'pc_trust', conversationId: r1.conversationId, text: "no, that's it" }, deps);
+    expect((await getConversation(r2.conversationId))?.status).toBe('closed');
   });
 
   it('auto-closes a thread after inactivity', async () => {

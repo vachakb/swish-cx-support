@@ -27,6 +27,7 @@ const ChatBody = z.object({
   channel: z.enum(channels).default('web'),
   text: z.string().min(1),
   image: z.object({ mimeType: z.string(), dataBase64: z.string() }).optional(),
+  intake: z.array(z.object({ role: z.enum(['user', 'assistant']), text: z.string() })).optional(),
 });
 
 app.post('/api/chat', async (c) => {

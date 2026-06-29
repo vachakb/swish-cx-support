@@ -121,13 +121,13 @@ export function Arena({ customerId, active, target, restoreConversationId, onCon
     return () => clearInterval(iv);
   }, [conversationId, active]);
 
-  async function send(text: string, image?: ImagePayload, echo = true, oid = orderId) {
+  async function send(text: string, image?: ImagePayload, echo = true, oid = orderId, intake?: { role: 'user' | 'assistant'; text: string }[]) {
     void ensureNotifyPermission();
     setSending(true);
     setSuggestions([]);
     if (echo) setMessages((m) => [...m, localMsg('user', text, image ? `data:${image.mimeType};base64,${image.dataBase64}` : undefined)]);
     try {
-      const { result, trace: t } = await api.chat({ conversationId, customerId, orderId: oid, channel: 'web', text, image });
+      const { result, trace: t } = await api.chat({ conversationId, customerId, orderId: oid, channel: 'web', text, image, intake });
       setConversationId(result.conversationId);
       setTrace(t);
       setStatus(result.status);
@@ -144,7 +144,11 @@ export function Arena({ customerId, active, target, restoreConversationId, onCon
     setMessages(r.bubbles);
     if (r.orderId) setOrderId(r.orderId);
     setMode('chat');
-    if (r.send) void send(r.send, r.image, false, r.orderId ?? orderId);
+    if (r.send) {
+      // Persist the chip transcript so reopening shows the full guided flow, not just the final exchange.
+      const intake = r.bubbles.map((b) => ({ role: b.role === 'assistant' ? ('assistant' as const) : ('user' as const), text: b.text }));
+      void send(r.send, r.image, false, r.orderId ?? orderId, intake);
+    }
   }
 
   const intakeOrder = orderId ? orders.find((o) => o.id === orderId) : undefined;

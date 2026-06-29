@@ -14,6 +14,7 @@ import { pickOrderId } from './util';
 const CANCELLABLE = new Set(['placed', 'preparing']);
 // Food-safety claims (foreign object, contamination, illness) never auto-resolve — a human reviews them.
 const SERIOUS = /\b(bug|insect|cockroach|roach|worm|maggot|hair|glass|plastic|metal|foreign|contaminat|mou?ld|rotten|spoil|expired|sick|ill|vomit|food pois|allerg)/i;
+const MISSING = /\b(missing|didn'?t (get|receive)|only (got|received)|received only|short|incomplete|forgot|left out|not (in|included))\b/i;
 type Remedy = ResolveDecision['remedy'];
 
 async function handleCancel(ctx: TurnContext, deps: HandlerDeps, order: Order): Promise<HandlerResult> {
@@ -105,6 +106,28 @@ async function handleIssue(ctx: TurnContext, deps: HandlerDeps, order: Order, it
       polish: false,
       data: { kind: 'resolution', diagnosis: decision.diagnosis, outcome: 'manual_review' },
     };
+  }
+
+  // Money needs verification. A missing item can't be photographed → check with the kitchen/packing team.
+  // Any other credit/refund needs photo proof before it moves.
+  if (decision.remedy === 'credit' || decision.remedy === 'refund') {
+    if (MISSING.test(ctx.input.text) || MISSING.test(decision.diagnosis)) {
+      return {
+        reply: "I'm sorry an item was missing! Let me check with the kitchen team to confirm what was packed for your order — I'll make this right as soon as I hear back from them.",
+        status: 'escalated',
+        escalationReason: `missing-item claim ("${decision.diagnosis}") — kitchen verification`,
+        polish: false,
+        data: { kind: 'resolution', diagnosis: decision.diagnosis, outcome: 'kitchen_check' },
+      };
+    }
+    if (!image) {
+      return {
+        reply: "I want to make this right! To put a credit or refund through I'll just need a quick photo of the issue — could you share one? (If you can't, I'll have a teammate verify it and sort it for you.)",
+        status: 'awaiting_user',
+        polish: false,
+        data: { kind: 'clarify', diagnosis: decision.diagnosis },
+      };
+    }
   }
 
   // Deterministic safety gate: caps, fraud velocity, corroboration, image reuse. LLM proposes, this disposes.

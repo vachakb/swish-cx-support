@@ -16,6 +16,7 @@ export interface ChatBody {
   channel: 'web' | 'whatsapp';
   text: string;
   image?: { mimeType: string; dataBase64: string };
+  intake?: { role: 'user' | 'assistant'; text: string }[];
 }
 
 export const api = {
