@@ -1,9 +1,8 @@
 import { formatINR } from '../../core/money';
+import { REFUND_PROCESSING_MS, policyConfig } from '../../policy/config';
 import * as repo from '../../repositories';
 import { answerKnowledge } from '../knowledge';
 import type { Handler, HandlerDeps, HandlerResult, TurnContext } from '../types';
-
-const REFUND_PROCESSING_MS = 7 * 24 * 60 * 60 * 1000;
 
 // Refund status is a precise, factual lookup — kept deterministic rather than handed to the LLM.
 async function refundStatus(ctx: TurnContext): Promise<HandlerResult> {
@@ -18,7 +17,7 @@ async function refundStatus(ctx: TurnContext): Promise<HandlerResult> {
   const ageMs = Date.now() - new Date(latest.createdAt).getTime();
   const processing = latest.type === 'refund' && ageMs < REFUND_PROCESSING_MS;
   const where = latest.type === 'credit' ? 'your Swish balance' : 'your original payment method';
-  const phase = processing ? `is on its way to ${where} (within 7 business days of confirmation)` : `is done — it's in ${where}`;
+  const phase = processing ? `is on its way to ${where} (within ${policyConfig.refundProcessingDays} business days of confirmation)` : `is done — it's in ${where}`;
   return {
     reply: `Your ${latest.type === 'credit' ? 'Swish credit' : 'refund'} of ${formatINR(latest.amount ?? 0)} for "${latest.reason}" ${phase}.`,
     status: 'resolved',

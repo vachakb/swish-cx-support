@@ -6,10 +6,10 @@ import { buildSendPayload, parseInbound, sendMessage, verifyWebhook } from '../c
 import { config } from '../config';
 import { channels, conversationStatuses } from '../db/schema';
 import { publishMessage, subscribeCustomer, subscribeMessages } from '../notifications/bus';
+import { REFUND_PROCESSING_MS } from '../policy/config';
 import * as repo from '../repositories';
 
 const REFUND_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
-const REFUND_PROCESSING_MS = 7 * 24 * 60 * 60 * 1000; // Swish ToS: refunds within 7 business days of confirmation
 
 export const app = new Hono();
 
