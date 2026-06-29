@@ -85,6 +85,11 @@ async function handleIssue(ctx: TurnContext, deps: HandlerDeps, order: Order, it
   });
   deps.tracer.note('resolve', { diagnosis: decision.diagnosis, sentiment: decision.sentiment, needMoreInfo: decision.needMoreInfo, remedy: decision.remedy, amountPaise: decision.amountPaise });
 
+  // Conduct/safety report, payment dispute, or anything outside an order remedy → hand to a human WITH the context the agent gathered.
+  if (!decision.needMoreInfo && decision.remedy === 'escalate') {
+    return { reply: decision.reply, status: 'escalated', escalationReason: decision.diagnosis || 'needs a teammate', polish: false, suggestions: decision.suggestions, data: { kind: 'resolution', diagnosis: decision.diagnosis, outcome: 'escalate' } };
+  }
+
   // Clarifying question or no money action → reply and wait, don't touch the wallet.
   const acting = !decision.needMoreInfo && decision.remedy !== 'none' && (decision.remedy === 'redeliver' || decision.amountPaise > 0);
   if (!acting) {

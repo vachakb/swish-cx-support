@@ -21,7 +21,7 @@ Also return confidence 0-1, sentiment (positive|neutral|negative|angry), and lan
 // "where is my referral reward" doesn't get caught by the "where is" tracking pattern.
 const RULES: Array<{ re: RegExp; intent: Intent }> = [
   { re: /\b(human|agent|representative|real person|talk to (someone|a person))\b/i, intent: 'human' },
-  { re: /\b(misconduct|misbehav|rude|abusive|harass(ed|ment)?|inappropriate|unprofessional|unsafe)\b/i, intent: 'human' },
+  { re: /\b(misconduct|misbehav|rude|abusive|harass(ed|ment)?|inappropriate|unprofessional|unsafe|delivery (partner|executive|agent|boy))\b/i, intent: 'order_issue' },
   { re: /\bcancel\b/i, intent: 'cancel_order' },
   { re: /(referr|invite|invitation|reward|cashback)/i, intent: 'referral_status' },
   { re: /refund (status|update)|status of (my |the )?refund|track (my )?refund|where('?s| is) my refund/i, intent: 'refund_status' },

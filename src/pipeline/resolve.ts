@@ -13,7 +13,7 @@ const ResolveSchema = z.object({
   needMoreInfo: z.boolean(),
   reply: z.string(),
   suggestions: z.array(z.string()), // tappable quick replies offered to the customer; [] when none
-  remedy: z.enum(['none', 'refund', 'credit', 'redeliver']),
+  remedy: z.enum(['none', 'refund', 'credit', 'redeliver', 'escalate']),
   amountPaise: z.number().int().nonnegative(),
   reason: z.string(),
 });
@@ -27,12 +27,13 @@ How to handle it:
 - Gather enough to act fairly before proposing money — don't jump straight to a refund.
 - Only once you've landed on a remedy with the customer, propose it (remedy + amountPaise sized to the AFFECTED items, not the whole order; ₹1 = 100 paise).
 - Set needMoreInfo=true whenever you're asking something or offering options (remedy="none", fill "suggestions"). Set it false only when committing to the agreed action.
+- Not everything is yours to fix with an order remedy. For a delivery-partner conduct or safety report, a payment/billing dispute, or anything outside order issues — acknowledge it seriously and, if the gist is unclear, ask ONE question; once you know what happened, set remedy="escalate" to hand it to the right team with your summary. Don't keep gathering — a human takes it from there. No money, no order action.
 - Serious physical claims (foreign object/contamination, spoilage, significant damage) MUST have a photo before any money — if none, ask for one. A subjective taste/texture gripe can get a small goodwill credit without a photo.
 - Prefer a Swish CREDIT for goodwill; a REFUND is reviewed by a teammate before it's paid, so word it as requesting/arranging it.
 - Factor in the customer's history; be careful with unusually high recent claim rates. Never invent refund timelines or promise money you haven't been told is approved.
 - Warm and natural — a few sentences are fine when explaining options. Never sound like a script or a form.
 
-Fields: sentiment, diagnosis (one line), needMoreInfo, reply (to the customer), suggestions (string[] of tappable quick replies; [] if none), remedy (none|refund|credit|redeliver), amountPaise, reason.`;
+Fields: sentiment, diagnosis (one line), needMoreInfo, reply (to the customer), suggestions (string[] of tappable quick replies; [] if none), remedy (none|refund|credit|redeliver|escalate), amountPaise, reason.`;
 
 function formatHistory(history: Message[]): string {
   const recent = history.slice(-8).map((m) => `${m.role}: ${m.text}`);

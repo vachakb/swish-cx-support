@@ -49,6 +49,13 @@ export function buildMockHandlers(): MockHandlers {
         const askedBefore = /\nassistant:/i.test(t);
         const detailed = latest.length > 35 || latest.includes(':'); // chip-composed intake messages are already specific
         const issue = mockIssueLabel(latest);
+        const conduct = /misconduct|misbehav|rude|abusiv|harass|unsafe|threat|conduct|delivery (partner|executive|agent|boy)/i.test(latest);
+        if (conduct) {
+          if (!askedBefore) {
+            return { sentiment: 'angry', diagnosis: 'delivery-partner conduct report', needMoreInfo: true, reply: "I'm really sorry — that's not acceptable and I take it seriously. Could you tell me exactly what happened (and roughly when), so I can pass the full picture to our safety team?", suggestions: [], remedy: 'none', amountPaise: 0, reason: 'conduct report' };
+          }
+          return { sentiment: 'angry', diagnosis: 'delivery-partner conduct report', needMoreInfo: false, reply: "Thank you for telling me. I've escalated this to our safety team with everything you've shared — they'll review it and follow up, and you won't have to repeat anything.", suggestions: [], remedy: 'escalate', amountPaise: 0, reason: 'conduct report' };
+        }
         if (!hasPhoto && !askedBefore && !detailed) {
           return {
             sentiment: 'negative',
