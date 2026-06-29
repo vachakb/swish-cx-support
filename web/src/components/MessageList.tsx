@@ -39,6 +39,7 @@ function Bubble({ message, wa }: { message: Message; wa: boolean }) {
     <div className={`flex animate-fade-in ${mine ? 'justify-end' : 'justify-start'}`}>
       <div className={`max-w-[80%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm ${tone}`}>
         {isAgent && <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">Human agent</div>}
+        {message.image && <img src={message.image} alt="attachment" className="mb-1.5 max-h-52 max-w-full rounded-lg" />}
         {message.text}
       </div>
     </div>

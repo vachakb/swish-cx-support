@@ -95,6 +95,7 @@ export interface Message {
   id: string;
   role: 'user' | 'assistant' | 'agent' | 'system';
   text: string;
+  image?: string; // data URL, for rendering an attached photo in the bubble
   createdAt: string;
   payload?: Record<string, unknown> | null;
 }

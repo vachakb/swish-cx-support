@@ -8,7 +8,7 @@ import { MessageList } from './MessageList';
 type ImagePayload = { mimeType: string; dataBase64: string };
 
 let seq = 0;
-const mk = (role: Message['role'], text: string): Message => ({ id: `intake-${seq++}`, role, text, createdAt: '' });
+const mk = (role: Message['role'], text: string, image?: string): Message => ({ id: `intake-${seq++}`, role, text, image, createdAt: '' });
 const PHOTO_ISSUES = new Set(['spilled', 'quality', 'wrong']);
 
 export interface IntakeResult {
@@ -64,8 +64,8 @@ export function Intake({ order, orders, onComplete }: { order?: OrderWithItems; 
   }
 
   function confirmItems(names: string[], image?: ImagePayload) {
-    const label = image ? `${names.join(', ')}  📎 photo attached` : names.join(', ');
-    const next = [...bubbles, mk('user', label)];
+    const url = image ? `data:${image.mimeType};base64,${image.dataBase64}` : undefined;
+    const next = [...bubbles, mk('user', names.join(', '), url)];
     onComplete({ bubbles: next, send: composeIssueMessage(issue, names), orderId: chosen?.id, image });
   }
 

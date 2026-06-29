@@ -25,7 +25,7 @@ interface ArenaProps {
   onBack?: () => void;
 }
 
-const localMsg = (role: Message['role'], text: string): Message => ({ id: crypto.randomUUID(), role, text, createdAt: '' });
+const localMsg = (role: Message['role'], text: string, image?: string): Message => ({ id: crypto.randomUUID(), role, text, image, createdAt: '' });
 
 export function Arena({ customerId, active, target, restoreConversationId, onConversation, onBack }: ArenaProps) {
   const [conversationId, setConversationId] = useState<string>();
@@ -120,7 +120,7 @@ export function Arena({ customerId, active, target, restoreConversationId, onCon
     void ensureNotifyPermission();
     setSending(true);
     setSuggestions([]);
-    if (echo) setMessages((m) => [...m, localMsg('user', text)]);
+    if (echo) setMessages((m) => [...m, localMsg('user', text, image ? `data:${image.mimeType};base64,${image.dataBase64}` : undefined)]);
     try {
       const { result, trace: t } = await api.chat({ conversationId, customerId, orderId: oid, channel: 'web', text, image });
       setConversationId(result.conversationId);
