@@ -29,8 +29,8 @@ export function RefundIcon() {
 
 export function SubHeader({ title, onBack }: { title: string; onBack: () => void }) {
   return (
-    <div className="mb-3 flex items-center gap-3">
-      <button type="button" onClick={onBack} className="text-2xl leading-none text-neutral-800">←</button>
+    <div className="mb-4 flex items-center gap-3">
+      <button type="button" onClick={onBack} className="grid h-9 w-9 place-items-center rounded-full bg-white text-lg text-neutral-700 shadow-card transition hover:bg-neutral-50">←</button>
       <h1 className="text-xl font-bold text-neutral-900">{title}</h1>
     </div>
   );

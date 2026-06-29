@@ -1,14 +1,30 @@
 @import 'tailwindcss';
 
-/* Swish brand is a fresh, vibrant green (deliberately not Swiggy orange / Zomato red), with a star mark. */
+/* Swish brand: a fresh, vibrant green (deliberately not Swiggy orange / Zomato red), with a star mark. */
 @theme {
   --color-swish-50: #ecfdf3;
   --color-swish-100: #d1fadf;
   --color-swish-200: #a6f4c5;
+  --color-swish-300: #6ce9a6;
   --color-swish-400: #32d583;
   --color-swish-500: #16b364;
   --color-swish-600: #099250;
   --color-swish-700: #087443;
+  --color-swish-800: #066a3a;
+  --color-swish-900: #054f2c;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  /* Soft, layered shadows for depth instead of hard borders everywhere. */
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 6px 18px rgb(16 24 40 / 0.06);
+  --shadow-soft: 0 2px 6px rgb(16 24 40 / 0.06), 0 16px 40px rgb(16 24 40 / 0.1);
+
+  --animate-fade-in: fade-in 0.25s ease-out both;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
 }
 
 html,
@@ -17,5 +33,22 @@ body,
   height: 100%;
 }
 body {
-  background-color: #f7f7f8;
+  font-family: var(--font-sans);
+  color: #0f172a;
+  background-color: #eef2f1;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Tidy, unobtrusive scrollbars. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(203 213 225) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: rgb(203 213 225);
+  border-radius: 9999px;
 }

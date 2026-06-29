@@ -11,7 +11,7 @@ function itemsLine(o: OrderWithItems): string {
 export function OrderCard({ order, variant, onNeedHelp }: { order: OrderWithItems; variant: 'home' | 'history'; onNeedHelp: () => void }) {
   const delivered = order.status === 'delivered';
   return (
-    <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white">
+    <div className="overflow-hidden rounded-2xl bg-white shadow-card ring-1 ring-neutral-100 transition hover:shadow-soft">
       <div className="p-4">
         <div className="flex items-start justify-between">
           {variant === 'history' ? <span className="text-lg font-bold text-swish-600">{inr(order.total)}</span> : <span className="text-[15px] font-semibold text-neutral-800">Order ID</span>}
@@ -45,7 +45,7 @@ export function OrderCard({ order, variant, onNeedHelp }: { order: OrderWithItem
           </>
         )}
       </div>
-      <button type="button" onClick={onNeedHelp} className="w-full bg-neutral-100 py-3 text-center text-[15px] font-semibold text-neutral-700 hover:bg-neutral-200">View details</button>
+      <button type="button" onClick={onNeedHelp} className="w-full border-t border-neutral-100 bg-neutral-50 py-3 text-center text-sm font-semibold text-neutral-600 transition hover:bg-neutral-100">View details</button>
     </div>
   );
 }

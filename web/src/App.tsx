@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import type { ReactNode } from 'react';
 import { api } from './api';
 import { Arena } from './components/Arena';
 import type { ChatTarget } from './components/Arena';
@@ -8,6 +7,11 @@ import { Inbox } from './components/Inbox';
 import { WhatsApp } from './components/WhatsApp';
 
 type View = 'home' | 'chat' | 'whatsapp' | 'inbox';
+const TABS: { id: View; label: string }[] = [
+  { id: 'home', label: 'Home' },
+  { id: 'whatsapp', label: 'WhatsApp' },
+  { id: 'inbox', label: 'Shared Inbox' },
+];
 
 const SESSION_KEY = 'swish.session.v1';
 function loadSession(): { view?: View; target?: ChatTarget; convId?: string } {
@@ -21,14 +25,14 @@ function loadSession(): { view?: View; target?: ChatTarget; convId?: string } {
 export default function App() {
   const [view, setView] = useState<View>(() => loadSession().view ?? 'home');
   const [userId, setUserId] = useState<string>();
+  const [userName, setUserName] = useState('');
   const [target, setTarget] = useState<ChatTarget>(() => loadSession().target ?? {});
   const [chatConvId, setChatConvId] = useState<string | undefined>(() => loadSession().convId);
 
   useEffect(() => {
-    api.profiles().then((p) => setUserId(p[0]?.id)).catch(() => {});
+    api.profiles().then((p) => { setUserId(p[0]?.id); setUserName(p[0]?.name ?? ''); }).catch(() => {});
   }, []);
 
-  // Persist the session so a refresh restores the tab + active conversation.
   useEffect(() => {
     try {
       localStorage.setItem(SESSION_KEY, JSON.stringify({ view, target, convId: chatConvId }));
@@ -41,27 +45,41 @@ export default function App() {
     setTarget({ orderId });
     setView('chat');
   }
-
   function resume(id: string) {
     setTarget({ threadId: id });
     setView('chat');
   }
 
+  const activeTab: View = view === 'chat' ? 'home' : view;
+
   return (
-    <div className="flex h-full flex-col">
-      <header className="flex items-center justify-between border-b border-neutral-200 bg-white px-5 py-2.5">
+    <div className="flex h-full flex-col bg-gradient-to-b from-swish-50 via-neutral-50 to-neutral-100">
+      <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-neutral-200/70 bg-white/80 px-4 py-2.5 backdrop-blur-md sm:px-6">
         <div className="flex items-center gap-2.5">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-swish-500 text-white">★</span>
-          <div>
-            <div className="text-sm font-semibold leading-none text-neutral-900">Swish Support</div>
-            <div className="mt-0.5 text-xs text-neutral-500">10-minute food delivery</div>
+          <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-swish-400 to-swish-600 text-lg text-white shadow-sm">★</span>
+          <div className="leading-none">
+            <div className="text-[15px] font-bold text-neutral-900">Swish Support</div>
+            <div className="mt-1 text-[11px] font-medium text-neutral-400">10-minute food delivery</div>
           </div>
         </div>
-        <nav className="flex gap-1 text-sm">
-          <Tab active={view === 'home' || view === 'chat'} onClick={() => setView('home')}>Home</Tab>
-          <Tab active={view === 'whatsapp'} onClick={() => setView('whatsapp')}>WhatsApp</Tab>
-          <Tab active={view === 'inbox'} onClick={() => setView('inbox')}>Shared Inbox</Tab>
+
+        <nav className="flex items-center gap-1 rounded-full bg-neutral-100 p-1">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setView(t.id)}
+              className={`rounded-full px-3 py-1.5 text-[13px] font-semibold transition sm:px-4 ${activeTab === t.id ? 'bg-white text-swish-700 shadow-sm' : 'text-neutral-500 hover:text-neutral-800'}`}
+            >
+              {t.label}
+            </button>
+          ))}
         </nav>
+
+        <div className="flex items-center gap-2">
+          {userName && <span className="hidden text-sm font-medium text-neutral-600 lg:block">{userName}</span>}
+          <span className="grid h-9 w-9 place-items-center rounded-full bg-swish-100 text-sm font-bold text-swish-700">{userName ? userName[0] : '·'}</span>
+        </div>
       </header>
 
       <main className="min-h-0 flex-1">
@@ -74,13 +92,5 @@ export default function App() {
         {view === 'inbox' && <Inbox active />}
       </main>
     </div>
-  );
-}
-
-function Tab({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
-  return (
-    <button type="button" onClick={onClick} className={`rounded-md px-3 py-1.5 font-medium ${active ? 'bg-swish-50 text-swish-700' : 'text-neutral-600 hover:bg-neutral-100'}`}>
-      {children}
-    </button>
   );
 }

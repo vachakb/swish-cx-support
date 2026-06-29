@@ -73,11 +73,13 @@ export function Intake({ order, orders, onComplete }: { order?: OrderWithItems; 
   return (
     <div className="flex h-full flex-col">
       <MessageList messages={bubbles} channel="web" />
-      <div className="border-t border-neutral-200 bg-white p-3">
-        {step === 'pickOrder' && <OrderOptions orders={orders} onPick={pickOrder} />}
-        {step === 'topLevel' && <Chips options={topics} onPick={topLevel} />}
-        {step === 'subIssue' && <Chips options={SUB_ISSUES} onPick={subIssue} />}
-        {step === 'pickItems' && chosen && <ItemPicker items={chosen.items} onConfirm={confirmItems} />}
+      <div className="border-t border-neutral-100 bg-white px-4 py-3">
+        <div className="mx-auto w-full max-w-2xl">
+          {step === 'pickOrder' && <OrderOptions orders={orders} onPick={pickOrder} />}
+          {step === 'topLevel' && <Chips options={topics} onPick={topLevel} />}
+          {step === 'subIssue' && <Chips options={SUB_ISSUES} onPick={subIssue} />}
+          {step === 'pickItems' && chosen && <ItemPicker items={chosen.items} onConfirm={confirmItems} />}
+        </div>
       </div>
     </div>
   );

@@ -143,13 +143,17 @@ export function Arena({ customerId, active, target, restoreConversationId, onCon
 
   return (
     <div className="grid h-full grid-cols-[1fr_320px] max-lg:grid-cols-1 max-lg:overflow-y-auto">
-      <section className="flex min-h-0 flex-col max-lg:h-[70vh]">
-        <div className="flex items-center justify-between border-b border-neutral-200 bg-white px-4 py-2">
-          <div className="flex items-center gap-2">
-            {onBack && <button type="button" onClick={onBack} className="text-lg leading-none text-neutral-700">←</button>}
-            <span className="text-sm font-medium text-neutral-700">Support chat</span>
+      <section className="flex min-h-0 flex-col bg-white max-lg:h-[75vh]">
+        <div className="flex items-center justify-between border-b border-neutral-100 px-4 py-2.5">
+          <div className="flex items-center gap-2.5">
+            {onBack && <button type="button" onClick={onBack} className="grid h-8 w-8 place-items-center rounded-full text-neutral-500 transition hover:bg-neutral-100">←</button>}
+            <span className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-swish-400 to-swish-600 text-white">★</span>
+            <div className="leading-tight">
+              <div className="text-sm font-semibold text-neutral-900">Swish Support</div>
+              <div className="flex items-center gap-1 text-[11px] font-medium text-swish-600"><span className="h-1.5 w-1.5 rounded-full bg-swish-500" /> Online</div>
+            </div>
           </div>
-          <button type="button" onClick={() => beginIntake(undefined)} className="rounded-md border border-neutral-200 px-2.5 py-1 text-xs text-neutral-600 hover:bg-neutral-50">+ New chat</button>
+          <button type="button" onClick={() => beginIntake(undefined)} className="rounded-full border border-neutral-200 px-3 py-1.5 text-xs font-semibold text-neutral-600 transition hover:bg-neutral-50">+ New chat</button>
         </div>
 
         {mode === 'intake' ? (
@@ -165,7 +169,7 @@ export function Arena({ customerId, active, target, restoreConversationId, onCon
           </>
         )}
       </section>
-      <aside className="border-l border-neutral-200 max-lg:border-t">
+      <aside className="border-l border-neutral-100 bg-white/40 max-lg:border-t">
         <TracePanel trace={trace} status={status} />
       </aside>
     </div>
