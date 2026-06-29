@@ -4,6 +4,8 @@ import {
   auditLog,
   conversations,
   customers,
+  faqArticles,
+  faqCategories,
   messages,
   orderItems,
   orderTracking,
@@ -14,6 +16,7 @@ import {
   traces,
   wallets,
 } from './schema';
+import { faqSeed } from '../faq/content';
 
 // Stable, readable ids so scenarios/orders link predictably and re-seeding is deterministic.
 const NOW = Date.now();
@@ -25,7 +28,7 @@ const inMins = (n: number) => new Date(NOW + n * 60_000);
 
 async function clear() {
   // Delete in child→parent order (FK-safe even if enforcement is on).
-  for (const t of [traces, auditLog, resolutions, attachments, messages, scenarios, conversations, orderTracking, orderItems, orders, serviceability, wallets, customers]) {
+  for (const t of [traces, auditLog, resolutions, attachments, messages, scenarios, conversations, orderTracking, orderItems, orders, serviceability, wallets, customers, faqArticles, faqCategories]) {
     await db.delete(t);
   }
 }
@@ -129,6 +132,9 @@ async function seed() {
     { id: 'scn_serviceable', title: 'Are you in my area?', description: 'Serviceability FAQ — Indiranagar is live.', customerId: 'cust_priya', channel: 'web', suggestedMessage: 'do you deliver to Indiranagar?', tags: ['faq', 'serviceability'] },
     { id: 'scn_not_serviceable', title: 'Area says not serviceable', description: 'Edge case: area is generally live but customer hits a not-serviceable message → graceful handling.', customerId: 'cust_neha', channel: 'web', suggestedMessage: "I'm in HSR but the app says you don't deliver here", tags: ['faq', 'serviceability', 'edge'] },
   ]);
+
+  await db.insert(faqCategories).values(faqSeed.map((c, i) => ({ id: c.id, title: c.title, sortOrder: i })));
+  await db.insert(faqArticles).values(faqSeed.flatMap((c) => c.articles.map((a, j) => ({ id: a.id, categoryId: c.id, question: a.question, answer: a.answer, tags: a.tags, sortOrder: j }))));
 }
 
 await seed();

@@ -4,3 +4,4 @@ export * from './catalog';
 export * from './conversations';
 export * from './resolutions';
 export * from './traces';
+export * from './faq';

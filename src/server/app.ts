@@ -4,7 +4,6 @@ import { engine } from '../app';
 import { parseInbound, sendMessage, verifyWebhook } from '../channels/whatsapp';
 import { config } from '../config';
 import { channels, conversationStatuses, orderStatuses } from '../db/schema';
-import { faqCategories } from '../faq/content';
 import { INACTIVITY_CLOSE_MS } from '../pipeline/lifecycle';
 import * as repo from '../repositories';
 
@@ -62,7 +61,7 @@ app.post('/api/conversations/:id/agent-reply', async (c) => {
 });
 
 // --- Arena: scenarios + profiles + orders ---
-app.get('/api/faq', (c) => c.json(faqCategories));
+app.get('/api/faq', async (c) => c.json(await repo.listFaqCategories()));
 app.get('/api/scenarios', async (c) => c.json(await repo.listScenarios()));
 app.get('/api/profiles', async (c) => c.json(await repo.listCustomers()));
 

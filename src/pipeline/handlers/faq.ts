@@ -1,5 +1,4 @@
 import { formatINR } from '../../core/money';
-import { searchFaq } from '../../faq/content';
 import * as repo from '../../repositories';
 import type { Handler, HandlerDeps, HandlerResult, TurnContext } from '../types';
 
@@ -67,7 +66,7 @@ export const faqHandler: Handler = {
     if (ctx.route.intent === 'referral_status') return referralStatus(ctx, deps);
     const text = ctx.input.text;
     if (SERVICEABILITY.test(text)) return serviceability(text, deps);
-    const article = searchFaq(text); // same content as the self-serve Help module
+    const article = await repo.searchFaq(text); // DB-backed; same content as the self-serve Help module
     if (article) return { reply: article.answer, status: 'resolved', data: { kind: 'faq', id: article.id } };
     return { reply: 'Happy to help! Is this about referrals, serviceable areas, cancellations, or an order?', status: 'awaiting_user' };
   },

@@ -179,3 +179,19 @@ export const traces = sqliteTable('traces', {
   steps: text({ mode: 'json' }).$type<TraceStep[]>(),
   createdAt: createdAt(),
 });
+
+// Self-serve Help content — editable as data rather than hard-coded.
+export const faqCategories = sqliteTable('faq_categories', {
+  id: text().primaryKey(),
+  title: text().notNull(),
+  sortOrder: integer().notNull().default(0),
+});
+
+export const faqArticles = sqliteTable('faq_articles', {
+  id: text().primaryKey(),
+  categoryId: text().notNull().references(() => faqCategories.id),
+  question: text().notNull(),
+  answer: text().notNull(),
+  tags: text({ mode: 'json' }).$type<string[]>(),
+  sortOrder: integer().notNull().default(0),
+});

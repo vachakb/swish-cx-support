@@ -4,14 +4,14 @@ import type { Intent } from './types';
 export const INACTIVITY_CLOSE_MS = 10 * 60 * 1000;
 
 const TITLES: Partial<Record<Intent, string>> = {
-  order_status: 'Order tracking',
-  order_issue: 'Order issue',
-  cancel_order: 'Cancel order',
-  referral_status: 'Referral reward',
-  faq: 'General question',
-  human: 'Talk to a human',
-  greeting: 'New chat',
-  closing: 'New chat',
+  order_status: "Where's my order?",
+  order_issue: "Something's not right with my order",
+  cancel_order: 'Cancel my order',
+  referral_status: 'My referral reward',
+  faq: 'A quick question',
+  human: 'Talk to a teammate',
+  greeting: 'Support chat',
+  closing: 'Support chat',
 };
 
 export function deriveTitle(intent: Intent, text: string): string {
