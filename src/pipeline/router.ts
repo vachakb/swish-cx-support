@@ -25,7 +25,7 @@ const RULES: Array<{ re: RegExp; intent: Intent }> = [
   { re: /\bcancel\b/i, intent: 'cancel_order' },
   { re: /(referr|invite|invitation|reward|cashback)/i, intent: 'referral_status' },
   { re: /refund (status|update)|status of (my |the )?refund|track (my )?refund|where('?s| is) my refund/i, intent: 'refund_status' },
-  { re: /(spill|spilt|leak|soak|missing|didn'?t (get|receive)|only (got|received)|received only|wrong (order|item)|incorrect|not what i ordered|damag|broke|crush|smash|stale|rotten)/i, intent: 'order_issue' },
+  { re: /(spill|spilt|leak|soak|missing|didn'?t (get|receive)|only (got|received)|received only|wrong (order|item)|incorrect|not what i ordered|damag|broke|crush|smash|stale|rotten|tast|flavou?r|texture|bland|soggy|under ?cook|over ?cook|smell|didn'?t (taste|feel) right|isn'?t right|quality)/i, intent: 'order_issue' },
   { re: /(where('?s| is)|how (far|long)|track|\beta\b|arriv|still not here|not (yet )?(arrived|delivered))/i, intent: 'order_status' },
   { re: /\b(serviceable|deliver to|available in|do you (deliver|serve)|in my area)\b/i, intent: 'faq' },
   // Checked last so substantive intents win (e.g. "thanks, but where's my order?" → order_status).

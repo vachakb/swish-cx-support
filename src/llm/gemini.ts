@@ -9,7 +9,7 @@ import type { LlmProvider, LlmRequest } from './types';
 const TIMEOUT_MS = 18_000;
 const MAX_JSON_RETRIES = 1;
 // Bounded thinking for the reasoning tiers: enough to reason about a resolution, not so much it stalls the chat.
-const THINKING_BUDGET = 1024;
+const THINKING_BUDGET = 512;
 
 export function createGeminiLlm(apiKey: string): LlmProvider {
   const ai = new GoogleGenAI({ apiKey });

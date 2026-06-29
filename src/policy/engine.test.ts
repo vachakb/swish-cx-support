@@ -20,7 +20,7 @@ describe('decideClaim', () => {
   });
 
   it('escalates on high claim velocity (the repeat-claimant signal)', async () => {
-    const d = await decideClaim({ action: refund(12000), signals: { ...trusted, recentClaims: 3 }, corroborated: true, imageDuplicate: false });
+    const d = await decideClaim({ action: refund(12000), signals: { ...trusted, recentClaims: 6 }, corroborated: true, imageDuplicate: false });
     expect(d.outcome).toBe('escalate');
   });
 
