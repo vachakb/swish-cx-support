@@ -25,3 +25,7 @@ logs/
 
 # test / coverage
 coverage/
+
+# design assets + WIP docs (a single final doc will be added explicitly)
+design/
+docs/
