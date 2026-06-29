@@ -5,6 +5,7 @@ import type { Conversation } from '../repositories';
 import { polish } from './compose';
 import { checkInput, checkOutput } from './guardrails';
 import { getHandler } from './handlers';
+import { deriveTitle } from './lifecycle';
 import { detectLanguage, detectSentiment, route, ruleIntent } from './router';
 import { Tracer } from './tracer';
 import type { HandlerResult, RouteResult, TurnContext, TurnInput, TurnResult } from './types';
@@ -69,9 +70,12 @@ export async function runTurn(input: TurnInput, deps: EngineDeps): Promise<TurnR
   const reply = checked.ok ? checked.text : checkOutput(result.reply).ok ? result.reply : 'Let me connect you with a teammate to make sure this is handled properly.';
 
   const assistantMsg = await repo.addMessage({ conversationId: conversation.id, role: 'assistant', text: reply, payload: result.data ?? null, traceId: tracer.traceId });
+  // 'closing' archives the thread; otherwise it follows the turn's status.
+  const convStatus = routed.intent === 'closing' ? 'closed' : result.status;
   await repo.updateConversation(conversation.id, {
-    status: result.status,
+    status: convStatus,
     sentiment: routed.sentiment,
+    subject: conversation.subject ?? deriveTitle(routed.intent, gate.text),
     customerId: ctx.customerId ?? null,
     orderId: ctx.orderId ?? null,
     escalationReason: result.status === 'escalated' ? result.escalationReason ?? null : null,

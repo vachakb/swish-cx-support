@@ -1,6 +1,10 @@
+import { eq } from 'drizzle-orm';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { db } from '../db/client';
+import { conversations } from '../db/schema';
 import { createLlm } from '../llm';
 import { providers } from '../providers';
+import { closeStaleConversations, getConversation } from '../repositories';
 import { migrateTestDb, seedPipelineFixture } from '../test/db';
 import { runTurn } from './engine';
 import { buildMockHandlers } from './mock-llm';
@@ -74,5 +78,18 @@ describe('pipeline runTurn (mock LLM)', () => {
     expect(r.intent).toBe('order_issue');
     expect(r.status).toBe('resolved');
     expect(r.action?.type).toBe('credit');
+  });
+
+  it('archives the thread when the customer says they are done', async () => {
+    const r = await runTurn({ channel: 'web', customerId: 'pc_trust', text: "thanks, that's all!" }, deps);
+    expect(r.intent).toBe('closing');
+    expect((await getConversation(r.conversationId))?.status).toBe('closed');
+  });
+
+  it('auto-closes a thread after inactivity', async () => {
+    const r = await runTurn({ channel: 'web', customerId: 'pc_trust', orderId: 'po_active', text: 'where is my order?' }, deps);
+    await db.update(conversations).set({ updatedAt: new Date(Date.now() - 11 * 60_000) }).where(eq(conversations.id, r.conversationId));
+    await closeStaleConversations(10 * 60_000);
+    expect((await getConversation(r.conversationId))?.status).toBe('closed');
   });
 });

@@ -13,7 +13,7 @@ const RouteSchema = z.object({
 
 const ROUTE_SYSTEM = `Classify a customer's message for Swish food-delivery support and return JSON.
 intent is one of: ${intents.join(', ')}.
-greeting=hi/thanks; faq=general questions (how referral works, serviceability, policy); referral_status=asking where their referral reward is; order_status=where is my order / ETA; order_issue=spillage/missing/wrong/damaged item; cancel_order=cancel request; human=wants a person; unknown=anything else.
+greeting=hi/hello; faq=general questions (how referral works, serviceability, policy); referral_status=asking where their referral reward is; order_status=where is my order / ETA; order_issue=spillage/missing/wrong/damaged item; cancel_order=cancel request; human=wants a person; closing=thanks/that's all/goodbye (issue resolved); unknown=anything else.
 Also return confidence 0-1, sentiment (positive|neutral|negative|angry), and language (en|hi|hinglish).`;
 
 // Deterministic rules for the costly/critical intents — never gambled on a probabilistic classifier.
@@ -26,6 +26,8 @@ const RULES: Array<{ re: RegExp; intent: Intent }> = [
   { re: /(spill|spilt|leak|soak|missing|didn'?t (get|receive)|only (got|received)|received only|wrong (order|item)|incorrect|not what i ordered|damag|broke|crush|smash|stale|rotten)/i, intent: 'order_issue' },
   { re: /(where('?s| is)|how (far|long)|track|\beta\b|arriv|still not here|not (yet )?(arrived|delivered))/i, intent: 'order_status' },
   { re: /\b(serviceable|deliver to|available in|do you (deliver|serve)|in my area)\b/i, intent: 'faq' },
+  // Checked last so substantive intents win (e.g. "thanks, but where's my order?" → order_status).
+  { re: /\b(thanks|thank you|that'?s all|that'?s it|all good|nothing else|no that'?s (it|all)|bye|cheers)\b/i, intent: 'closing' },
 ];
 
 const ANGRY = /(ridiculous|terrible|worst|pathetic|fed up|unacceptable|disgusting|!!!|cheated|scam|useless)/i;

@@ -5,7 +5,11 @@ import { parseInbound, sendMessage, verifyWebhook } from '../channels/whatsapp';
 import { config } from '../config';
 import { channels, conversationStatuses, orderStatuses } from '../db/schema';
 import { faqCategories } from '../faq/content';
+import { INACTIVITY_CLOSE_MS } from '../pipeline/lifecycle';
 import * as repo from '../repositories';
+
+const REFUND_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+const REFUND_PROCESSING_MS = 5 * 24 * 60 * 60 * 1000;
 
 export const app = new Hono();
 
@@ -88,6 +92,32 @@ app.post('/api/profiles/:id/orders', async (c) => {
   if (!body) return c.json({ error: 'invalid body' }, 400);
   const orderId = await repo.createOrder({ customerId: c.req.param('id'), ...body });
   return c.json({ orderId }, 201);
+});
+
+// --- Home dashboard: per-customer threads, refunds, recent orders ---
+app.get('/api/profiles/:id/orders', async (c) => c.json(await repo.getOrdersWithItems(c.req.param('id'))));
+
+app.get('/api/profiles/:id/threads', async (c) => {
+  await repo.closeStaleConversations(INACTIVITY_CLOSE_MS); // archive anything gone quiet
+  return c.json(await repo.listConversationsByCustomer(c.req.param('id')));
+});
+
+app.get('/api/profiles/:id/refunds', async (c) => {
+  const all = await repo.listResolutionsByCustomer(c.req.param('id'));
+  const now = Date.now();
+  const refunds = all
+    .filter((r) => r.type === 'refund' || r.type === 'credit')
+    .map((r) => {
+      const ageMs = now - new Date(r.createdAt).getTime();
+      const processing = r.type === 'refund' && ageMs < REFUND_PROCESSING_MS;
+      return { id: r.id, type: r.type, amount: r.amount, reason: r.reason, orderId: r.orderId, createdAt: r.createdAt, status: processing ? 'processing' : 'completed', active: ageMs < REFUND_WINDOW_MS };
+    });
+  return c.json({ refunds, activeCount: refunds.filter((r) => r.active).length });
+});
+
+app.post('/api/conversations/:id/reopen', async (c) => {
+  await repo.reopenConversation(c.req.param('id'));
+  return c.json({ ok: true });
 });
 
 // --- WhatsApp Cloud API webhook (real contract; sim mode echoes the reply) ---

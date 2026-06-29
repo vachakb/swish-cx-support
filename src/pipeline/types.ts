@@ -12,6 +12,7 @@ export const intents = [
   'order_issue',
   'cancel_order',
   'human',
+  'closing',
   'unknown',
 ] as const;
 export type Intent = (typeof intents)[number];

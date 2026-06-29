@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray, lt } from 'drizzle-orm';
 import { db } from '../db/client';
 import { id } from '../db/ids';
 import { attachments, conversations, messages } from '../db/schema';
@@ -47,3 +47,17 @@ export async function addAttachment(input: Omit<NewAttachment, 'id'>): Promise<A
 // Cross-ticket dedupe: same image bytes seen on another claim is a fraud signal.
 export const findAttachmentsBySha = (sha256: string) =>
   db.select().from(attachments).where(eq(attachments.sha256, sha256)).all();
+
+// A customer's own threads (active + archived), most recent first.
+export const listConversationsByCustomer = (customerId: string) =>
+  db.select().from(conversations).where(eq(conversations.customerId, customerId)).orderBy(desc(conversations.updatedAt)).all();
+
+// Close + archive quiet threads (the 10-minute rule). Escalated threads are left for the human agent.
+export async function closeStaleConversations(thresholdMs: number): Promise<void> {
+  const cutoff = new Date(Date.now() - thresholdMs);
+  await db.update(conversations).set({ status: 'closed' }).where(and(inArray(conversations.status, ['bot', 'awaiting_user', 'resolved']), lt(conversations.updatedAt, cutoff)));
+}
+
+export async function reopenConversation(cid: string): Promise<void> {
+  await db.update(conversations).set({ status: 'bot', updatedAt: new Date() }).where(eq(conversations.id, cid));
+}

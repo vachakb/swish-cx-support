@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, inArray } from 'drizzle-orm';
 import { db } from '../db/client';
 import { id } from '../db/ids';
 import { orderItems, orderTracking, orders } from '../db/schema';
@@ -30,6 +30,21 @@ export async function getOrderDetails(oid: string): Promise<OrderDetails | undef
 
 export const listOrdersByCustomer = (customerId: string) =>
   db.select().from(orders).where(eq(orders.customerId, customerId)).orderBy(desc(orders.placedAt)).all();
+
+export type OrderWithItems = Order & { items: OrderItem[] };
+
+export async function getOrdersWithItems(customerId: string): Promise<OrderWithItems[]> {
+  const ords = await listOrdersByCustomer(customerId);
+  if (ords.length === 0) return [];
+  const items = await db.select().from(orderItems).where(inArray(orderItems.orderId, ords.map((o) => o.id))).all();
+  const byOrder = new Map<string, OrderItem[]>();
+  for (const it of items) {
+    const list = byOrder.get(it.orderId) ?? [];
+    list.push(it);
+    byOrder.set(it.orderId, list);
+  }
+  return ords.map((o) => ({ ...o, items: byOrder.get(o.id) ?? [] }));
+}
 
 export interface NewOrderInput {
   customerId: string;
