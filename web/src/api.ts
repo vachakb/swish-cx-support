@@ -33,5 +33,6 @@ export const api = {
   conversation: (id: string) => jsonFetch<{ conversation: Conversation; messages: Message[]; traces: Trace[] }>(`/api/conversations/${id}`),
   agentReply: (id: string, text: string) => postJson<{ ok: boolean }>(`/api/conversations/${id}/agent-reply`, { text }),
   reopen: (id: string) => postJson<{ ok: boolean }>(`/api/conversations/${id}/reopen`, {}),
-  whatsapp: (payload: unknown) => postJson<{ ok: boolean; reply?: string; outbound?: unknown; mode?: string }>('/api/whatsapp/webhook', payload),
+  whatsapp: (payload: unknown, orderId?: string) =>
+    postJson<{ ok: boolean; reply?: string; outbound?: unknown; mode?: string }>(`/api/whatsapp/webhook${orderId ? `?orderId=${encodeURIComponent(orderId)}` : ''}`, payload),
 };

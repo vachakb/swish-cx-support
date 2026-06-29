@@ -131,7 +131,10 @@ app.post('/api/whatsapp/webhook', async (c) => {
   // Meta sends the wa_id as digits; our customers are stored E.164 (+…).
   const phone = inbound.from.startsWith('+') ? inbound.from : `+${inbound.from}`;
   const customer = await repo.getCustomerByPhone(phone);
-  const result = await engine.run({ channel: 'whatsapp', text: inbound.text, customerId: customer?.id });
+  // The chosen order from the guided menu rides along as a query param in this sim;
+  // in production it'd be encoded in the WhatsApp interactive-reply id.
+  const orderId = c.req.query('orderId') || undefined;
+  const result = await engine.run({ channel: 'whatsapp', text: inbound.text, customerId: customer?.id, orderId });
   await sendMessage(inbound.from, result.reply);
   return c.json({ ok: true, reply: result.reply, outbound: buildSendPayload(inbound.from, result.reply), mode: config.whatsapp.live ? 'live' : 'sim' });
 });

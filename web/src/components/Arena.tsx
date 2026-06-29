@@ -122,7 +122,7 @@ export function Arena({ customerId, active, target, onBack }: ArenaProps) {
     setMessages(r.bubbles);
     if (r.orderId) setOrderId(r.orderId);
     setMode('chat');
-    if (r.send) void send(r.send, undefined, false, r.orderId ?? orderId);
+    if (r.send) void send(r.send, r.image, false, r.orderId ?? orderId);
   }
 
   const intakeOrder = orderId ? orders.find((o) => o.id === orderId) : undefined;

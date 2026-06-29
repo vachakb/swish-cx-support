@@ -1,17 +1,22 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import type { ChangeEvent } from 'react';
 import type { Message, OrderWithItems } from '../types';
-import { inr } from '../util';
+import { inr, readImageAsBase64 } from '../util';
 import { ORDER_TOPICS, SUB_ISSUES, TOPIC_SENDS, composeIssueMessage, orderItemNames } from '../intake';
 import { MessageList } from './MessageList';
+
+type ImagePayload = { mimeType: string; dataBase64: string };
 
 let seq = 0;
 const mk = (role: Message['role'], text: string): Message => ({ id: `intake-${seq++}`, role, text, createdAt: '' });
 const shortId = (id: string) => id.slice(-6).toUpperCase();
+const PHOTO_ISSUES = new Set(['spilled', 'quality', 'wrong']);
 
 export interface IntakeResult {
   bubbles: Message[];
   send: string | null; // message to send to the agent, or null to drop into free chat
   orderId?: string;
+  image?: ImagePayload;
 }
 
 type Step = 'pickOrder' | 'topLevel' | 'subIssue' | 'pickItems';
@@ -49,13 +54,15 @@ export function Intake({ order, orders, onComplete }: { order?: OrderWithItems; 
       return;
     }
     setIssue(id);
-    setBubbles([...next, mk('assistant', 'Which item(s) were affected?')]);
+    const prompt = PHOTO_ISSUES.has(id) ? 'Which item(s) were affected? A photo of the issue helps us sort it faster.' : 'Which item(s) were affected?';
+    setBubbles([...next, mk('assistant', prompt)]);
     setStep('pickItems');
   }
 
-  function confirmItems(names: string[]) {
-    const next = [...bubbles, mk('user', names.join(', '))];
-    onComplete({ bubbles: next, send: composeIssueMessage(issue, names), orderId: chosen?.id });
+  function confirmItems(names: string[], image?: ImagePayload) {
+    const label = image ? `${names.join(', ')}  📎 photo attached` : names.join(', ');
+    const next = [...bubbles, mk('user', label)];
+    onComplete({ bubbles: next, send: composeIssueMessage(issue, names), orderId: chosen?.id, image });
   }
 
   return (
@@ -102,8 +109,12 @@ function OrderOptions({ orders, onPick }: { orders: OrderWithItems[]; onPick: (o
   );
 }
 
-function ItemPicker({ items, onConfirm }: { items: OrderWithItems['items']; onConfirm: (names: string[]) => void }) {
+function ItemPicker({ items, onConfirm }: { items: OrderWithItems['items']; onConfirm: (names: string[], image?: ImagePayload) => void }) {
   const [sel, setSel] = useState<Set<string>>(new Set());
+  const [image, setImage] = useState<ImagePayload | null>(null);
+  const [imageName, setImageName] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+
   function toggle(name: string) {
     setSel((s) => {
       const n = new Set(s);
@@ -112,6 +123,13 @@ function ItemPicker({ items, onConfirm }: { items: OrderWithItems['items']; onCo
       return n;
     });
   }
+  async function pickFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImage(await readImageAsBase64(file));
+    setImageName(file.name);
+  }
+
   return (
     <div className="flex flex-col gap-2.5">
       <div className="flex flex-wrap gap-2">
@@ -125,9 +143,15 @@ function ItemPicker({ items, onConfirm }: { items: OrderWithItems['items']; onCo
           );
         })}
       </div>
-      <button type="button" disabled={sel.size === 0} onClick={() => onConfirm([...sel])} className="self-end rounded-lg bg-swish-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-40">
-        Continue
-      </button>
+      <div className="flex items-center justify-between">
+        <button type="button" onClick={() => fileRef.current?.click()} className="flex items-center gap-1.5 text-sm font-medium text-swish-600 hover:text-swish-700">
+          📷 {imageName ? `Photo: ${imageName}` : 'Add a photo (optional)'}
+        </button>
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={pickFile} />
+        <button type="button" disabled={sel.size === 0} onClick={() => onConfirm([...sel], image ?? undefined)} className="rounded-lg bg-swish-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-40">
+          Continue
+        </button>
+      </div>
     </div>
   );
 }
