@@ -1,6 +1,7 @@
 import type { MockHandlers } from '../llm';
 import type { VisionScore } from '../types';
 import type { ResolveDecision } from './resolve';
+import type { WismoDecision } from './wismo';
 import { detectLanguage, detectSentiment, ruleIntent, tailIntent } from './router';
 import type { RouteResult } from './types';
 
@@ -67,6 +68,20 @@ export function buildMockHandlers(): MockHandlers {
           remedy: 'credit',
           amountPaise: 6000,
           reason: issue,
+        };
+      },
+      // WISMO stand-in: honest when the ETA is reliable, transparent + investigative when it isn't.
+      wismo: (req): WismoDecision => {
+        const t = req.prompt;
+        const reliable = !/UNRELIABLE/.test(t);
+        const severe = /Severity: severe/i.test(t);
+        if (reliable) {
+          const m = t.match(/about (\d+) minute/);
+          return { reply: `Your order's on its way — about ${m?.[1] ?? 'a few'} minutes out. It's running a touch behind but moving; I'm keeping a close eye on it!`, escalate: false };
+        }
+        return {
+          reply: "I'm sorry — I can't get a reliable live update from the rider right now, so I won't guess a time. It's running behind, and I'm checking with both the rider and the kitchen to get it moving. You can track it live in the app, and I'll message you the moment it's on the way.",
+          escalate: severe,
         };
       },
     },

@@ -1,11 +1,13 @@
 import { etaConfig } from './config';
 
 export type EtaConfidence = 'high' | 'medium' | 'low';
-export type EtaRecommendation = 'show_eta' | 'acknowledge_delay' | 'proactive_remedy';
+export type EtaRecommendation = 'show_eta' | 'acknowledge_delay' | 'investigate';
 
 export interface EtaTruth {
   confidence: EtaConfidence;
-  displayEtaSeconds: number | null; // null = don't quote a number; it isn't trustworthy
+  displayEtaSeconds: number | null; // a FRESH estimate; null = don't quote a number, it isn't trustworthy
+  freshEtaSeconds: number | null;
+  riderDistanceM: number | null;
   isStale: boolean;
   isStuck: boolean;
   isBreached: boolean;
@@ -18,13 +20,16 @@ export interface EtaInput {
   etaSeconds: number;
   etaLastComputedAt: Date;
   riderLastGpsAt: Date | null;
+  distanceRemainingM: number | null;
   promisedBy: Date;
   now: number;
 }
 
 const mins = (ms: number) => Math.round(ms / 60_000);
+const HANDOFF_S = 60; // last-leg buffer (park, walk up) on top of travel time
 
-// The heart of the "stuck ETA" fix: reason over the ETA's freshness metadata, not the number itself.
+// The heart of the "stuck ETA" fix: reason over the ETA's freshness, and recompute a FRESH estimate
+// from the rider's distance rather than ever parroting a cached/frozen number.
 export function assessEta(input: EtaInput): EtaTruth {
   const etaAgeMs = input.now - input.etaLastComputedAt.getTime();
   const gpsAgeMs = input.riderLastGpsAt ? input.now - input.riderLastGpsAt.getTime() : null;
@@ -40,10 +45,17 @@ export function assessEta(input: EtaInput): EtaTruth {
   const severe = pastPromiseMs > etaConfig.severeBreachMs;
   const minutesLate = Math.max(0, mins(pastPromiseMs));
 
+  // Always quote a FRESH number: trust the cached ETA only while it's fresh; otherwise recompute
+  // from current rider distance; if the rider data can't be trusted at all, quote nothing.
+  let freshEtaSeconds: number | null;
+  if (!etaStale) freshEtaSeconds = input.etaSeconds;
+  else if (!isStuck && input.distanceRemainingM != null) freshEtaSeconds = Math.round(input.distanceRemainingM / etaConfig.deliverySpeedMps) + HANDOFF_S;
+  else freshEtaSeconds = null;
+
   const reasons: string[] = [];
   if (gpsStale) reasons.push(`rider GPS last updated ~${mins(gpsAgeMs!)} min ago`);
   if (noGps) reasons.push('no rider GPS available');
-  if (etaStale) reasons.push(`ETA not recomputed in ~${mins(etaAgeMs)} min`);
+  if (etaStale) reasons.push(`cached ETA not recomputed in ~${mins(etaAgeMs)} min`);
   if (isBreached) reasons.push(`${minutesLate} min past the promised time`);
   if (!reasons.length) reasons.push('fresh GPS and ETA, within promise');
 
@@ -52,12 +64,14 @@ export function assessEta(input: EtaInput): EtaTruth {
   else if (isStale || isBreached) confidence = 'medium';
 
   let recommendation: EtaRecommendation = 'show_eta';
-  if (isBreached && isStuck) recommendation = 'proactive_remedy';
+  if (isStuck) recommendation = 'investigate';
   else if (isBreached || isStale) recommendation = 'acknowledge_delay';
 
   return {
     confidence,
-    displayEtaSeconds: recommendation === 'show_eta' ? input.etaSeconds : null,
+    displayEtaSeconds: freshEtaSeconds,
+    freshEtaSeconds,
+    riderDistanceM: input.distanceRemainingM,
     isStale,
     isStuck,
     isBreached,
