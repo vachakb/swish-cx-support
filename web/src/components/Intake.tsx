@@ -1,15 +1,14 @@
 import { useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import type { Message, OrderWithItems } from '../types';
-import { inr, readImageAsBase64 } from '../util';
-import { SUB_ISSUES, TOPIC_SENDS, composeIssueMessage, orderItemNames, topicsForStatus } from '../intake';
+import { inr, longDate, readImageAsBase64 } from '../util';
+import { SUB_ISSUES, TOPIC_SENDS, composeIssueMessage, orderItemNames, orderLabel, topicsForStatus } from '../intake';
 import { MessageList } from './MessageList';
 
 type ImagePayload = { mimeType: string; dataBase64: string };
 
 let seq = 0;
 const mk = (role: Message['role'], text: string): Message => ({ id: `intake-${seq++}`, role, text, createdAt: '' });
-const shortId = (id: string) => id.slice(-6).toUpperCase();
 const PHOTO_ISSUES = new Set(['spilled', 'quality', 'wrong']);
 
 export interface IntakeResult {
@@ -31,7 +30,7 @@ export function Intake({ order, orders, onComplete }: { order?: OrderWithItems; 
 
   function pickOrder(o: OrderWithItems) {
     setChosen(o);
-    setBubbles((b) => [...b, mk('user', `Order ${shortId(o.id)} · ${inr(o.total)}`), mk('assistant', 'How can I help with this order?')]);
+    setBubbles((b) => [...b, mk('user', `${orderLabel(o)} · ${inr(o.total)}`), mk('assistant', 'How can I help with this order?')]);
     setStep('topLevel');
   }
 
@@ -104,12 +103,12 @@ function OrderOptions({ orders, onPick }: { orders: OrderWithItems[]; onPick: (o
   return (
     <div className="flex max-h-64 flex-col gap-2 overflow-y-auto">
       {orders.map((o) => (
-        <button key={o.id} type="button" onClick={() => onPick(o)} className="rounded-xl border border-neutral-200 px-3.5 py-2.5 text-left hover:border-swish-300 hover:bg-swish-50">
-          <div className="flex items-center justify-between text-sm">
-            <span className="font-semibold text-neutral-800">{inr(o.total)} · {o.status}</span>
-            <span className="text-xs text-neutral-400">{shortId(o.id)}</span>
+        <button key={o.id} type="button" onClick={() => onPick(o)} className="rounded-xl border border-neutral-200 px-3.5 py-2.5 text-left transition hover:border-swish-300 hover:bg-swish-50">
+          <div className="flex items-center justify-between gap-2">
+            <span className="truncate text-sm font-semibold text-neutral-800">{orderItemNames(o)}</span>
+            <span className="shrink-0 text-sm font-semibold text-neutral-800">{inr(o.total)}</span>
           </div>
-          <div className="mt-0.5 truncate text-xs text-neutral-500">{orderItemNames(o)}</div>
+          <div className="mt-0.5 text-xs capitalize text-neutral-400">{o.status} · {longDate(o.placedAt)}</div>
         </button>
       ))}
     </div>

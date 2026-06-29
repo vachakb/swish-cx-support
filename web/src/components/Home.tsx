@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { api } from '../api';
-import type { Conversation, Customer, FaqArticle, FaqCategory, Message, OrderWithItems, Refund, Wallet } from '../types';
+import type { Conversation, Customer, FaqArticle, FaqCategory, OrderWithItems, Refund, Wallet } from '../types';
 import { formatId, inr, shortDateTime } from '../util';
 import { OrderCard } from './OrderCard';
-import { CopyBtn, Empty, SubHeader } from './ui';
+import { CopyBtn, SubHeader } from './ui';
 
 interface HomeProps {
   customerId?: string;
   onOpenChat: (orderId?: string) => void;
   onResumeThread: (id: string) => void;
 }
-type View = 'home' | 'refunds' | 'threads' | 'orders' | 'topic' | 'article' | 'thread';
+type View = 'home' | 'refunds' | 'threads' | 'orders' | 'topic' | 'article';
 
 const TOPIC_ICON: Record<string, string> = { delivery: '🛵', payments: '👛', changes: '🛍️', account: '🧑', support: '🛡️' };
 
@@ -24,8 +24,6 @@ export function Home({ customerId, onOpenChat, onResumeThread }: HomeProps) {
   const [view, setView] = useState<View>('home');
   const [topic, setTopic] = useState<FaqCategory>();
   const [article, setArticle] = useState<FaqArticle>();
-  const [threadId, setThreadId] = useState<string>();
-  const [threadReturn, setThreadReturn] = useState<View>('home');
 
   const reload = useCallback(() => {
     if (!customerId) return;
@@ -36,12 +34,6 @@ export function Home({ customerId, onOpenChat, onResumeThread }: HomeProps) {
   }, [customerId]);
   useEffect(() => { reload(); }, [reload]);
   useEffect(() => { api.faq().then(setFaq).catch(() => {}); }, []);
-
-  function openThread(id: string, from: View) {
-    setThreadId(id);
-    setThreadReturn(from);
-    setView('thread');
-  }
 
   if (view === 'topic' && topic) {
     return (
@@ -72,7 +64,6 @@ export function Home({ customerId, onOpenChat, onResumeThread }: HomeProps) {
     );
   }
 
-  if (view === 'thread' && threadId) return <ThreadView id={threadId} onBack={() => setView(threadReturn)} onReopen={() => onResumeThread(threadId)} />;
 
   if (view === 'refunds') {
     return (
@@ -87,7 +78,7 @@ export function Home({ customerId, onOpenChat, onResumeThread }: HomeProps) {
     return (
       <Shell narrow>
         <SubHeader title="Conversation archives" onBack={() => setView('home')} />
-        <div className="space-y-3">{threads.length === 0 ? <EmptyCard>No conversations yet.</EmptyCard> : threads.map((t) => <ArchiveCard key={t.id} t={t} detailed onOpen={() => openThread(t.id, 'threads')} />)}</div>
+        <div className="space-y-3">{threads.length === 0 ? <EmptyCard>No conversations yet.</EmptyCard> : threads.map((t) => <ArchiveCard key={t.id} t={t} detailed onOpen={() => onResumeThread(t.id)} />)}</div>
       </Shell>
     );
   }
@@ -130,7 +121,7 @@ export function Home({ customerId, onOpenChat, onResumeThread }: HomeProps) {
         <section>
           <SectionHeader title="Conversations" onViewAll={threads.length ? () => setView('threads') : undefined} />
           {threads.length === 0 ? <EmptyCard>No conversations yet.</EmptyCard> : (
-            <div className="space-y-3">{threads.slice(0, 3).map((t) => <ArchiveCard key={t.id} t={t} onOpen={() => openThread(t.id, 'home')} />)}</div>
+            <div className="space-y-3">{threads.slice(0, 3).map((t) => <ArchiveCard key={t.id} t={t} onOpen={() => onResumeThread(t.id)} />)}</div>
           )}
         </section>
       </div>
@@ -218,27 +209,6 @@ function RefundRow({ r }: { r: Refund }) {
         </div>
       </div>
       <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${r.status === 'processing' ? 'bg-amber-50 text-amber-700' : 'bg-swish-50 text-swish-700'}`}>{r.status}</span>
-    </div>
-  );
-}
-
-function ThreadView({ id, onBack, onReopen }: { id: string; onBack: () => void; onReopen: () => void }) {
-  const [data, setData] = useState<{ conversation: Conversation; messages: Message[] } | null>(null);
-  useEffect(() => {
-    api.conversation(id).then((d) => setData({ conversation: d.conversation, messages: d.messages })).catch(() => {});
-  }, [id]);
-  return (
-    <div className="mx-auto flex h-full w-full max-w-2xl flex-col px-4 py-6 sm:px-6">
-      <SubHeader title={data?.conversation.subject ?? 'Conversation'} onBack={onBack} />
-      <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto rounded-2xl bg-white p-4 shadow-card">
-        {data?.messages.map((m) => (
-          <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[80%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm ${m.role === 'user' ? 'bg-swish-500 text-white' : m.role === 'agent' ? 'bg-amber-100 text-amber-900' : 'bg-neutral-100 text-neutral-800'}`}>{m.text}</div>
-          </div>
-        ))}
-        {data && data.messages.length === 0 && <Empty>No messages.</Empty>}
-      </div>
-      <button type="button" onClick={onReopen} className="mt-3 w-full rounded-xl bg-swish-50 py-2.5 text-sm font-semibold text-swish-700 transition hover:bg-swish-100">Reopen conversation</button>
     </div>
   );
 }

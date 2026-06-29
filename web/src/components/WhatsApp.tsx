@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { api } from '../api';
-import { SUB_ISSUES, TOPIC_SENDS, composeIssueMessage, topicsForStatus } from '../intake';
+import { SUB_ISSUES, TOPIC_SENDS, composeIssueMessage, orderLabel, topicsForStatus } from '../intake';
 import type { OrderWithItems } from '../types';
 import { inr } from '../util';
 
@@ -12,7 +12,6 @@ interface Msg {
 }
 
 type MenuStep = 'none' | 'pickOrder' | 'topLevel' | 'subIssue' | 'pickItems';
-const shortId = (id: string) => id.slice(-6).toUpperCase();
 
 // A generic help/greeting opens the guided menu; a specific complaint goes straight to the agent.
 function isHelpTrigger(t: string): boolean {
@@ -96,7 +95,7 @@ export function WhatsApp({ customerId }: { customerId?: string }) {
 
   function pickOrder(o: OrderWithItems) {
     setMenuOrder(o);
-    pushUser(`Order ${shortId(o.id)} · ${inr(o.total)}`);
+    pushUser(`${orderLabel(o)} · ${inr(o.total)}`);
     pushBot('How can I help with this order?');
     setStep('topLevel');
   }
@@ -123,8 +122,9 @@ export function WhatsApp({ customerId }: { customerId?: string }) {
   }
 
   return (
-    <div className="grid h-full grid-cols-[minmax(0,400px)_1fr] gap-6 overflow-y-auto p-6 max-lg:grid-cols-1">
-      <div className="mx-auto w-full max-w-[380px]">
+    <div className="grid h-full grid-cols-1 gap-6 overflow-y-auto p-6 lg:grid-cols-[380px_minmax(0,1fr)] lg:overflow-hidden">
+      <div className="lg:min-h-0 lg:overflow-y-auto">
+        <div className="mx-auto w-full max-w-[380px]">
         <div className="overflow-hidden rounded-[2rem] border-[6px] border-neutral-900 bg-neutral-900 shadow-xl">
           <div className="flex items-center gap-3 bg-[#075e54] px-4 py-3 text-white">
             <span className="text-lg leading-none">←</span>
@@ -161,7 +161,7 @@ export function WhatsApp({ customerId }: { customerId?: string }) {
           ) : (
             <div className="max-h-[210px] space-y-1.5 overflow-y-auto bg-[#f0f0f0] p-2">
               {step === 'pickOrder' && orders.map((o) => (
-                <WaButton key={o.id} onClick={() => pickOrder(o)}>{inr(o.total)} · {o.status} — {shortId(o.id)}</WaButton>
+                <WaButton key={o.id} onClick={() => pickOrder(o)}>{orderLabel(o)} · {inr(o.total)}</WaButton>
               ))}
               {step === 'topLevel' && menuOrder && topicsForStatus(menuOrder.status).map((t) => <WaButton key={t.id} onClick={() => pickTopic(t.id)}>{t.label}</WaButton>)}
               {step === 'subIssue' && SUB_ISSUES.map((s) => <WaButton key={s.id} onClick={() => pickSubIssue(s.id)}>{s.label}</WaButton>)}
@@ -169,9 +169,10 @@ export function WhatsApp({ customerId }: { customerId?: string }) {
             </div>
           )}
         </div>
+        </div>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-3 lg:min-h-0 lg:overflow-y-auto">
         <div>
           <h2 className="text-base font-bold text-neutral-900">WhatsApp Cloud API integration {io && <span className="ml-1 rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600">{io.mode} mode</span>}</h2>
           <p className="mt-1 text-sm text-neutral-500">Not a reskin — each message runs through the <span className="font-medium text-neutral-700">real</span> Cloud API contract: Meta's webhook payload into <code className="rounded bg-neutral-100 px-1">/api/whatsapp/webhook</code>, then the Graph API request we send to reply. The guided options map to WhatsApp interactive list/button messages.</p>

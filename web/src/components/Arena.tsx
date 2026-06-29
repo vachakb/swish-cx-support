@@ -153,7 +153,6 @@ export function Arena({ customerId, active, target, restoreConversationId, onCon
               <div className="flex items-center gap-1 text-[11px] font-medium text-swish-600"><span className="h-1.5 w-1.5 rounded-full bg-swish-500" /> Online</div>
             </div>
           </div>
-          <button type="button" onClick={() => beginIntake(undefined)} className="rounded-full border border-neutral-200 px-3 py-1.5 text-xs font-semibold text-neutral-600 transition hover:bg-neutral-50">+ New chat</button>
         </div>
 
         {mode === 'intake' ? (
@@ -165,6 +164,9 @@ export function Arena({ customerId, active, target, restoreConversationId, onCon
         ) : (
           <>
             <MessageList messages={messages} sending={sending} channel="web" placeholder="Tell us what's up and we'll help." />
+            {(status === 'closed' || status === 'resolved') && (
+              <div className="border-t border-amber-100 bg-amber-50 px-4 py-2 text-center text-xs font-medium text-amber-700">This conversation was closed — send a message to reopen it.</div>
+            )}
             <Composer sending={sending} onSend={(t, img) => void send(t, img)} />
           </>
         )}

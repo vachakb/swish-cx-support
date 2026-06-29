@@ -60,3 +60,10 @@ export function composeIssueMessage(issue: string, items: string[]): string {
 export function orderItemNames(o: OrderWithItems): string {
   return o.items.map((i) => i.name).join(', ');
 }
+
+// A short, human-readable order label (first item + "+N more") — never the raw internal id.
+export function orderLabel(o: OrderWithItems): string {
+  const n = o.items.length;
+  if (n === 0) return 'your order';
+  return `${o.items[0]!.name}${n > 1 ? ` +${n - 1} more` : ''}`;
+}
