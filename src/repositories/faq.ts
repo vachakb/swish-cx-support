@@ -32,5 +32,6 @@ export async function searchFaq(query: string): Promise<FaqArticle | undefined> 
     for (const w of words) if (hay.includes(w)) score += 1;
     if (score > 0 && (!best || score > best.score)) best = { article: { id: a.id, question: a.question, answer: a.answer, tags }, score };
   }
-  return best?.article;
+  // Require more than one incidental word overlap, so an off-topic query doesn't get a wrong article.
+  return best && best.score >= 2 ? best.article : undefined;
 }

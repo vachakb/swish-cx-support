@@ -20,13 +20,14 @@ Also return confidence 0-1, sentiment (positive|neutral|negative|angry), and lan
 // Order matters — earlier rules win. Referral/reward is checked before order_status so
 // "where is my referral reward" doesn't get caught by the "where is" tracking pattern.
 const RULES: Array<{ re: RegExp; intent: Intent }> = [
-  { re: /\b(human|agent|representative|real person|talk to (someone|a person))\b/i, intent: 'human' },
+  { re: /\b(human|live) agent\b|\b(talk|speak|connect|transfer|chat|get|put|reach|need|want)\b[^.!?]{0,25}\b(human|agent|person|representative|someone|teammate)\b/i, intent: 'human' },
   { re: /\b(misconduct|misbehav|rude|abusive|harass(ed|ment)?|inappropriate|unprofessional|unsafe|delivery (partner|executive|agent|boy))\b/i, intent: 'order_issue' },
   { re: /\bcancel\b/i, intent: 'cancel_order' },
   { re: /(referr|invite|invitation|reward|cashback)/i, intent: 'referral_status' },
   { re: /refund (status|update)|status of (my |the )?refund|track (my )?refund|where('?s| is) my refund/i, intent: 'refund_status' },
-  { re: /(spill|spilt|leak|soak|missing|didn'?t (get|receive)|only (got|received)|received only|wrong (order|item)|incorrect|not what i ordered|damag|broke|crush|smash|stale|rotten|tast|flavou?r|texture|bland|soggy|under ?cook|over ?cook|smell|didn'?t (taste|feel) right|isn'?t right|quality)/i, intent: 'order_issue' },
-  { re: /(where('?s| is)|how (far|long)|track|\beta\b|arriv|still not here|not (yet )?(arrived|delivered))/i, intent: 'order_status' },
+  { re: /charged (twice|again|two times|extra)|double[- ]?charge|over ?charg|wrong amount|deducted (twice|extra|but)|payment (failed|issue|problem|declined)/i, intent: 'order_issue' },
+  { re: /(spill|spilt|leak|soak|missing|did ?n'?o?t (get|receive)|never (got|received|arrived|came|showed)|not (delivered|received)|only (got|received)|received only|wrong (order|item)|incorrect|not what i ordered|damag|broke|crush|smash|stale|rotten|tast|flavou?r|texture|bland|soggy|under ?cook|over ?cook|smell|didn'?t (taste|feel) right|isn'?t right|quality)/i, intent: 'order_issue' },
+  { re: /(where('?s| is)|how (far|long)|track|\beta\b|arriv|still not here|not (yet )?(arrived|delivered)|kahan|kahaan|kab (aa|tak)|nahi aaya)/i, intent: 'order_status' },
   { re: /\b(serviceable|deliver to|available in|do you (deliver|serve)|in my area)\b/i, intent: 'faq' },
   // Checked last so substantive intents win (e.g. "thanks, but where's my order?" → order_status).
   { re: /\b(thanks|thank you|that'?s all|that'?s it|all good|nothing else|no that'?s (it|all)|bye|cheers)\b/i, intent: 'closing' },

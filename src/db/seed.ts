@@ -93,10 +93,20 @@ async function seed() {
   ]);
 
   await db.insert(messages).values([
+    // Escalated payment dispute → a human teammate stepped in (shows the inbox → agent reply flow).
     { id: 'msg_a1', conversationId: 'cnv_active', role: 'user', text: 'I was charged twice for the same order and no one is helping!' },
     { id: 'msg_a2', conversationId: 'cnv_active', role: 'assistant', text: "I'm really sorry, Arjun. A double charge needs a teammate to verify the payment — I've escalated this with all your details so you won't have to repeat anything." },
-    { id: 'msg_c1', conversationId: 'cnv_closed_1', role: 'user', text: 'my biryani was completely spilled' },
-    { id: 'msg_c2', conversationId: 'cnv_closed_1', role: 'assistant', text: "I'm sorry about that! I've added ₹198 to your Swish balance right away to make up for it." },
+    { id: 'msg_a3', conversationId: 'cnv_active', role: 'agent', text: "Hi Arjun, Meera from Swish here. I can see the duplicate ₹198 charge — I've reversed it to your UPI and it'll reflect within 24 hours. So sorry for the hassle!" },
+    // A resolved food issue → the full consultative flow (understand → ask for proof → resolve).
+    { id: 'msg_c1', conversationId: 'cnv_closed_1', role: 'user', text: 'something was off with my order' },
+    { id: 'msg_c2', conversationId: 'cnv_closed_1', role: 'assistant', text: "Oh no — I'm sorry, Arjun. What went wrong, and which item was affected?" },
+    { id: 'msg_c3', conversationId: 'cnv_closed_1', role: 'user', text: 'the egg bhurji sandwich was completely soggy and cold' },
+    { id: 'msg_c4', conversationId: 'cnv_closed_1', role: 'assistant', text: 'That is not the experience we want at all. Could you share a quick photo so I can sort it right away?' },
+    { id: 'msg_c5', conversationId: 'cnv_closed_1', role: 'user', text: 'sure, just sent it across' },
+    { id: 'msg_c6', conversationId: 'cnv_closed_1', role: 'assistant', text: "Thank you — that's clearly not right. I've added ₹198 to your Swish balance to make up for it, and flagged it to the kitchen. Anything else I can help with?" },
+    // A quick WISMO that resolved on its own.
+    { id: 'msg_c7', conversationId: 'cnv_closed_2', role: 'user', text: "where's my order? it's been a little while" },
+    { id: 'msg_c8', conversationId: 'cnv_closed_2', role: 'assistant', text: 'It was a few minutes out and has since been delivered — marked complete a moment ago. Hope it was delicious! Anything else?' },
   ]);
 
   // Refunds card content: a processing refund + a completed goodwill credit.
