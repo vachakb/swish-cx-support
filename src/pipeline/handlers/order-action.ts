@@ -12,6 +12,8 @@ import type { Handler, HandlerDeps, HandlerResult, TurnContext } from '../types'
 import { pickOrderId } from './util';
 
 const CANCELLABLE = new Set(['placed', 'preparing']);
+// Food-safety claims (foreign object, contamination, illness) never auto-resolve — a human reviews them.
+const SERIOUS = /\b(bug|insect|cockroach|roach|worm|maggot|hair|glass|plastic|metal|foreign|contaminat|mou?ld|rotten|spoil|expired|sick|ill|vomit|food pois|allerg)/i;
 type Remedy = ResolveDecision['remedy'];
 
 async function handleCancel(ctx: TurnContext, deps: HandlerDeps, order: Order): Promise<HandlerResult> {
@@ -89,6 +91,17 @@ async function handleIssue(ctx: TurnContext, deps: HandlerDeps, order: Order, it
     return { reply: decision.reply, status: 'awaiting_user', polish: false, data: { kind: 'clarify', diagnosis: decision.diagnosis } };
   }
 
+  // Food-safety claims never auto-pay, photo or not — a human reviews them with priority.
+  if (SERIOUS.test(ctx.input.text) || SERIOUS.test(decision.diagnosis)) {
+    return {
+      reply: "I'm really sorry — a possible food-safety issue like this is something I want our team to review properly and fast. I've flagged it with all the details (a photo helps if you have one), and a teammate will be straight in touch to make it right.",
+      status: 'escalated',
+      escalationReason: `possible food-safety issue ("${decision.diagnosis}") — manual review`,
+      polish: false,
+      data: { kind: 'resolution', diagnosis: decision.diagnosis, outcome: 'manual_review' },
+    };
+  }
+
   // Deterministic safety gate: caps, fraud velocity, corroboration, image reuse. LLM proposes, this disposes.
   const action = toAction(decision.remedy, decision.amountPaise, decision.reason, order, ctx);
   if (!action) return { reply: decision.reply, status: 'awaiting_user', polish: false, data: { kind: 'clarify' } };
@@ -98,6 +111,17 @@ async function handleIssue(ctx: TurnContext, deps: HandlerDeps, order: Order, it
   deps.tracer.note('policy', { outcome: policy.outcome, reasons: policy.reasons });
 
   if (policy.outcome === 'auto_approve') {
+    const amount = 'amount' in action ? action.amount : 0;
+    // Refunds (cash back to the original method) always get a teammate's sign-off — never moved silently.
+    if (action.type === 'refund') {
+      return {
+        reply: `Thanks for the details, and I'm sorry about this. I've put through a refund request for ${formatINR(amount)} — a teammate will review and process it shortly, and you'll get a confirmation the moment it's done.`,
+        status: 'escalated',
+        escalationReason: `refund of ${formatINR(amount)} proposed for "${decision.diagnosis}" — awaiting human approval`,
+        polish: false,
+        data: { kind: 'resolution', diagnosis: decision.diagnosis, remedy: 'refund', amount, outcome: 'manual_approval' },
+      };
+    }
     const res = await deps.providers.executor.execute(action);
     if (res.status === 'failed') return { reply: 'I hit a snag arranging that — let me get a teammate on it right away.', status: 'escalated', escalationReason: res.message, polish: false };
     return {
@@ -105,7 +129,7 @@ async function handleIssue(ctx: TurnContext, deps: HandlerDeps, order: Order, it
       status: 'resolved',
       action,
       polish: false,
-      data: { kind: 'resolution', diagnosis: decision.diagnosis, remedy: decision.remedy, amount: 'amount' in action ? action.amount : 0, outcome: 'auto_approve' },
+      data: { kind: 'resolution', diagnosis: decision.diagnosis, remedy: decision.remedy, amount, outcome: 'auto_approve' },
     };
   }
 

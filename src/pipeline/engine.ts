@@ -37,6 +37,13 @@ export async function runTurn(input: TurnInput, deps: EngineDeps): Promise<TurnR
 
   const tracer = new Tracer(conversation.id);
   tracer.note('llm', { provider: deps.llm.name });
+
+  const history = await repo.listMessages(conversation.id);
+  // Continuity: if our last turn asked an order-issue clarifying question, keep a context-free
+  // follow-up (e.g. "strawberry cake") in that flow instead of dropping it to the generic fallback.
+  const lastBot = [...history].reverse().find((m) => m.role === 'assistant');
+  const midResolution = (lastBot?.payload as { kind?: string } | null | undefined)?.kind === 'clarify';
+
   let routed: RouteResult;
   try {
     routed = await tracer.step('route', () => route(gate.text, deps.llm));
@@ -44,11 +51,15 @@ export async function runTurn(input: TurnInput, deps: EngineDeps): Promise<TurnR
     // LLM routing failed — fall back to rules (or 'unknown') so we still respond gracefully.
     routed = { intent: ruleIntent(gate.text) ?? 'unknown', confidence: 0.3, sentiment: detectSentiment(gate.text), language: detectLanguage(gate.text) };
   }
+  if (midResolution && (routed.intent === 'unknown' || routed.intent === 'faq' || routed.intent === 'greeting')) {
+    tracer.note('continuity', { from: routed.intent, to: 'order_issue' });
+    routed = { ...routed, intent: 'order_issue' };
+  }
 
   const ctx: TurnContext = {
     input: { ...input, text: gate.text },
     conversation,
-    history: await repo.listMessages(conversation.id),
+    history,
     route: routed,
     customerId: input.customerId ?? conversation.customerId ?? undefined,
     orderId: input.orderId ?? conversation.orderId ?? undefined,
