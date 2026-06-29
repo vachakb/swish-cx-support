@@ -25,6 +25,28 @@ export interface Order {
   promisedBy: string;
 }
 
+export interface OrderItem {
+  id: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+}
+
+export interface OrderWithItems extends Order {
+  items: OrderItem[];
+}
+
+export interface Refund {
+  id: string;
+  type: 'refund' | 'credit';
+  amount: number | null;
+  reason: string;
+  orderId: string | null;
+  createdAt: string;
+  status: 'processing' | 'completed';
+  active: boolean;
+}
+
 export interface Scenario {
   id: string;
   title: string;

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { ensureNotifyPermission, notify } from '../notify';
-import type { Customer, Message, Trace } from '../types';
+import type { Message, Trace } from '../types';
 import { Chat } from './Chat';
 import { ProfilePanel } from './ProfilePanel';
 import type { OrderPreset, ProfileDetail } from './ProfilePanel';
@@ -15,10 +15,15 @@ const ORDER_PRESETS: Record<OrderPreset, unknown> = {
   delivered: { status: 'delivered', promisedInMin: -50, items: [{ name: 'Filter Coffee', quantity: 1, unitPrice: 4000 }, { name: 'Masala Dosa', quantity: 1, unitPrice: 12000 }] },
 };
 
-// A channel playground: act as a profile and chat with the engine over a fixed channel (web or whatsapp).
-export function Arena({ channel, active }: { channel: 'web' | 'whatsapp'; active: boolean }) {
-  const [profiles, setProfiles] = useState<Customer[]>([]);
-  const [profileId, setProfileId] = useState<string>();
+interface ArenaProps {
+  customerId?: string;
+  channel: 'web' | 'whatsapp';
+  active: boolean;
+  resumeThreadId?: string;
+  onResumed?: () => void;
+}
+
+export function Arena({ customerId, channel, active, resumeThreadId, onResumed }: ArenaProps) {
   const [detail, setDetail] = useState<ProfileDetail | null>(null);
   const [orderId, setOrderId] = useState<string>();
   const [conversationId, setConversationId] = useState<string>();
@@ -29,12 +34,48 @@ export function Arena({ channel, active }: { channel: 'web' | 'whatsapp'; active
   const [sending, setSending] = useState(false);
   const seenAgent = useRef<Set<string>>(new Set());
 
-  const refreshProfiles = () => api.profiles().then(setProfiles).catch(() => {});
-  useEffect(() => {
-    refreshProfiles();
-  }, []);
+  function resetThread() {
+    setConversationId(undefined);
+    setMessages([]);
+    setTrace(null);
+    setStatus(undefined);
+    setOrderId(undefined);
+    seenAgent.current = new Set();
+  }
 
-  // Poll the open conversation for human (agent) replies; surface them — and notify if you've left.
+  async function loadProfile(id: string) {
+    try {
+      setDetail(await api.profile(id));
+    } catch {
+      setDetail(null);
+    }
+  }
+
+  // Current user changed → load their context and start a fresh thread.
+  useEffect(() => {
+    resetThread();
+    if (customerId) void loadProfile(customerId);
+  }, [customerId]);
+
+  // Resume a reopened thread: load its messages and continue it.
+  useEffect(() => {
+    if (!resumeThreadId) return;
+    void (async () => {
+      try {
+        const { conversation, messages: server } = await api.conversation(resumeThreadId);
+        setConversationId(conversation.id);
+        setMessages(server.map((m) => ({ id: m.id, role: m.role, text: m.text, createdAt: m.createdAt })));
+        seenAgent.current = new Set(server.filter((m) => m.role === 'agent').map((m) => m.id));
+        setTrace(null);
+        setStatus(conversation.status);
+      } catch {
+        /* ignore */
+      }
+      onResumed?.();
+    })();
+  }, [resumeThreadId]);
+
+  // Poll for human (agent) replies; notify if the customer has left this view.
   useEffect(() => {
     if (!conversationId) return;
     const tick = async () => {
@@ -46,54 +87,19 @@ export function Arena({ channel, active }: { channel: 'web' | 'whatsapp'; active
         setMessages((cur) => [...cur, ...fresh.map((m) => ({ id: m.id, role: 'agent' as const, text: m.text, createdAt: m.createdAt }))]);
         if (!active || document.hidden) notify('Swish Support', fresh[fresh.length - 1]!.text);
       } catch {
-        /* ignore poll errors */
+        /* ignore */
       }
     };
     const iv = setInterval(tick, 4000);
     return () => clearInterval(iv);
   }, [conversationId, active]);
 
-  async function loadProfile(id: string) {
-    setProfileId(id);
-    try {
-      setDetail(await api.profile(id));
-    } catch {
-      setDetail(null);
-    }
-  }
-
-  function resetThread() {
-    setConversationId(undefined);
-    setMessages([]);
-    setTrace(null);
-    setStatus(undefined);
-    seenAgent.current = new Set();
-  }
-
-  async function pickProfile(id: string) {
-    resetThread();
-    setOrderId(undefined);
-    await loadProfile(id);
-  }
-
-  async function createProfile(name: string, area: string) {
-    try {
-      const c = await api.createProfile({ name, area });
-      await refreshProfiles();
-      resetThread();
-      setOrderId(undefined);
-      await loadProfile(c.id);
-    } catch {
-      /* ignore */
-    }
-  }
-
   async function createOrder(preset: OrderPreset) {
-    if (!profileId) return;
+    if (!customerId) return;
     try {
-      await api.createOrder(profileId, ORDER_PRESETS[preset]);
-      setOrderId(undefined); // let the engine pick the newest matching order
-      await loadProfile(profileId);
+      await api.createOrder(customerId, ORDER_PRESETS[preset]);
+      setOrderId(undefined);
+      await loadProfile(customerId);
     } catch {
       /* ignore */
     }
@@ -109,12 +115,12 @@ export function Arena({ channel, active }: { channel: 'web' | 'whatsapp'; active
     setMessages((m) => [...m, appended('user', text)]);
     setDraft('');
     try {
-      const { result, trace: t } = await api.chat({ conversationId, customerId: profileId, orderId, channel, text, image });
+      const { result, trace: t } = await api.chat({ conversationId, customerId, orderId, channel, text, image });
       setConversationId(result.conversationId);
       setTrace(t);
       setStatus(result.status);
       setMessages((m) => [...m, appended('assistant', result.reply)]);
-      if (profileId) void loadProfile(profileId);
+      if (customerId) void loadProfile(customerId);
     } catch {
       setMessages((m) => [...m, appended('assistant', 'Sorry — I had trouble reaching support just now. Please try again.')]);
     } finally {
@@ -123,13 +129,13 @@ export function Arena({ channel, active }: { channel: 'web' | 'whatsapp'; active
   }
 
   return (
-    <div className="grid h-full grid-cols-[300px_1fr_330px] max-lg:grid-cols-1 max-lg:overflow-y-auto">
+    <div className="grid h-full grid-cols-[280px_1fr_330px] max-lg:grid-cols-1 max-lg:overflow-y-auto">
       <aside className="border-r border-neutral-200 bg-white max-lg:border-b">
-        <ProfilePanel profiles={profiles} selectedId={profileId} detail={detail} onPickProfile={pickProfile} onCreateProfile={createProfile} onCreateOrder={createOrder} />
+        <ProfilePanel detail={detail} onCreateOrder={createOrder} onNewChat={resetThread} />
       </aside>
       <section className="flex min-h-0 flex-col max-lg:h-[70vh]">
         <div className="flex items-center justify-between border-b border-neutral-200 bg-white px-4 py-2">
-          <div className="text-sm text-neutral-600">{detail ? <>Acting as <span className="font-medium text-neutral-800">{detail.customer.name}</span></> : 'Pick a profile to start'}</div>
+          <div className="text-sm text-neutral-600">{detail ? <>Acting as <span className="font-medium text-neutral-800">{detail.customer.name}</span></> : 'Select a profile to start'}</div>
           <div className="text-xs text-neutral-400">{channel === 'whatsapp' ? 'WhatsApp channel' : 'In-app chat'}</div>
         </div>
         <div className="min-h-0 flex-1">
