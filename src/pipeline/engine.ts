@@ -8,7 +8,10 @@ import { getHandler } from './handlers';
 import { deriveTitle } from './lifecycle';
 import { detectLanguage, detectSentiment, route, ruleIntent } from './router';
 import { Tracer } from './tracer';
-import type { HandlerResult, RouteResult, TurnContext, TurnInput, TurnResult } from './types';
+import type { HandlerResult, Intent, RouteResult, TurnContext, TurnInput, TurnResult } from './types';
+
+// Mid-resolution, only these intents count as an explicit topic switch; everything else continues the flow.
+const OVERRIDE_INTENTS = new Set<Intent>(['human', 'cancel_order', 'closing']);
 
 export interface EngineDeps {
   llm: LlmProvider;
@@ -51,8 +54,11 @@ export async function runTurn(input: TurnInput, deps: EngineDeps): Promise<TurnR
     // LLM routing failed — fall back to rules (or 'unknown') so we still respond gracefully.
     routed = { intent: ruleIntent(gate.text) ?? 'unknown', confidence: 0.3, sentiment: detectSentiment(gate.text), language: detectLanguage(gate.text) };
   }
-  if (midResolution && (routed.intent === 'unknown' || routed.intent === 'faq' || routed.intent === 'greeting')) {
-    tracer.note('continuity', { from: routed.intent, to: 'order_issue' });
+  // While waiting on the answer to a clarifying question, keep the follow-up in the resolution flow —
+  // only an explicit switch (human / cancel / done) breaks out. A reply like "the rider never showed"
+  // must not get re-routed to order-status and lose the thread.
+  if (midResolution && !OVERRIDE_INTENTS.has(routed.intent)) {
+    if (routed.intent !== 'order_issue') tracer.note('continuity', { from: routed.intent, to: 'order_issue' });
     routed = { ...routed, intent: 'order_issue' };
   }
 
