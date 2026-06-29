@@ -68,6 +68,10 @@ export function buildMockHandlers(): MockHandlers {
           }
           return { sentiment: 'angry', diagnosis: 'delivery-partner conduct report', needMoreInfo: false, reply: "Thank you for telling me. I've escalated this to our safety team with everything you've shared — they'll review it and follow up, and you won't have to repeat anything.", suggestions: [], remedy: 'escalate', amountPaise: 0, reason: 'conduct report' };
         }
+        // Minor / subjective taste gripe → empathy + kitchen feedback, never money or a (pointless) photo ask.
+        if (/(too )?(bitter|bland|salty|sweet|spicy|mild)\b|watery/i.test(latest)) {
+          return { sentiment: 'negative', diagnosis: `minor quality note: ${issue}`, needMoreInfo: false, reply: "I'm sorry it wasn't quite right! I'll pass that straight to our kitchen so they can fine-tune it — thanks for the honest feedback. 💚", suggestions: [], remedy: 'none', amountPaise: 0, reason: 'minor quality feedback' };
+        }
         if (!hasPhoto && !askedBefore && !detailed) {
           return {
             sentiment: 'negative',
