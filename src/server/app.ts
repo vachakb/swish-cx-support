@@ -4,7 +4,7 @@ import * as z from 'zod';
 import { engine } from '../app';
 import { buildSendPayload, parseInbound, sendMessage, verifyWebhook } from '../channels/whatsapp';
 import { config } from '../config';
-import { channels, conversationStatuses, orderStatuses } from '../db/schema';
+import { channels, conversationStatuses } from '../db/schema';
 import { publishMessage, subscribeCustomer, subscribeMessages } from '../notifications/bus';
 import * as repo from '../repositories';
 
@@ -98,9 +98,8 @@ app.get('/api/customers/:id/events', (c) =>
   }),
 );
 
-// --- Arena: scenarios + profiles + orders ---
+// --- Reference data + customer profile (read-only) ---
 app.get('/api/faq', async (c) => c.json(await repo.listFaqCategories()));
-app.get('/api/scenarios', async (c) => c.json(await repo.listScenarios()));
 app.get('/api/profiles', async (c) => c.json(await repo.listCustomers()));
 
 app.get('/api/profiles/:id', async (c) => {
@@ -108,27 +107,6 @@ app.get('/api/profiles/:id', async (c) => {
   if (!customer) return c.json({ error: 'not found' }, 404);
   const [wallet, orders] = await Promise.all([repo.getWallet(customer.id), repo.listOrdersByCustomer(customer.id)]);
   return c.json({ customer, wallet, orders });
-});
-
-const ProfileBody = z.object({ name: z.string().min(1), phone: z.string().optional(), city: z.string().optional(), area: z.string().optional(), accountAgeDays: z.number().int().optional() });
-app.post('/api/profiles', async (c) => {
-  const body = parse(ProfileBody, await c.req.json().catch(() => null));
-  if (!body) return c.json({ error: 'invalid body' }, 400);
-  return c.json(await repo.createProfile(body), 201);
-});
-
-const OrderBody = z.object({
-  status: z.enum(orderStatuses).optional(),
-  items: z.array(z.object({ name: z.string(), quantity: z.number().int().positive(), unitPrice: z.number().int().nonnegative() })).min(1),
-  addressArea: z.string().optional(),
-  promisedInMin: z.number().optional(),
-  tracking: z.object({ etaSeconds: z.number().int(), etaAgeSec: z.number().optional(), gpsAgeSec: z.number().optional(), stateAgeSec: z.number().optional(), distanceRemainingM: z.number().optional() }).optional(),
-});
-app.post('/api/profiles/:id/orders', async (c) => {
-  const body = parse(OrderBody, await c.req.json().catch(() => null));
-  if (!body) return c.json({ error: 'invalid body' }, 400);
-  const orderId = await repo.createOrder({ customerId: c.req.param('id'), ...body });
-  return c.json({ orderId }, 201);
 });
 
 // --- Home dashboard: per-customer threads, refunds, recent orders ---

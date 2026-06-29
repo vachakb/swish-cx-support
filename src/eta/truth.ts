@@ -45,8 +45,7 @@ export function assessEta(input: EtaInput): EtaTruth {
   const severe = pastPromiseMs > etaConfig.severeBreachMs;
   const minutesLate = Math.max(0, mins(pastPromiseMs));
 
-  // Always quote a FRESH number: trust the cached ETA only while it's fresh; otherwise recompute
-  // from current rider distance; if the rider data can't be trusted at all, quote nothing.
+
   let freshEtaSeconds: number | null;
   if (!etaStale) freshEtaSeconds = input.etaSeconds;
   else if (!isStuck && input.distanceRemainingM != null) freshEtaSeconds = Math.round(input.distanceRemainingM / etaConfig.deliverySpeedMps) + HANDOFF_S;

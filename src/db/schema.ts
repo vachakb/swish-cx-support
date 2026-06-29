@@ -156,18 +156,6 @@ export const auditLog = sqliteTable('audit_log', {
   createdAt: createdAt(),
 });
 
-// Pre-built arena scenarios: pick one to load a profile + order + starter message.
-export const scenarios = sqliteTable('scenarios', {
-  id: text().primaryKey(),
-  title: text().notNull(),
-  description: text().notNull(),
-  customerId: text().notNull().references(() => customers.id),
-  orderId: text().references(() => orders.id),
-  channel: text({ enum: channels }).notNull().default('web'),
-  suggestedMessage: text().notNull(),
-  tags: text({ mode: 'json' }).$type<string[]>(),
-});
-
 export const traces = sqliteTable('traces', {
   id: text().primaryKey(),
   conversationId: text().notNull(),

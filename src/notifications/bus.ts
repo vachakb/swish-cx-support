@@ -1,8 +1,7 @@
 import { EventEmitter } from 'node:events';
 import type { Message } from '../repositories';
 
-// In-process pub/sub for live message push (SSE). Swap for Redis pub/sub when you run >1 instance —
-// the interface stays the same.
+// In-process pub/sub for live message push (SSE).
 const emitter = new EventEmitter();
 emitter.setMaxListeners(0); // many concurrent SSE subscribers
 

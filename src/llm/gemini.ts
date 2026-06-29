@@ -5,18 +5,17 @@ import { config } from '../config';
 import { redactPii } from '../core/redact';
 import type { LlmProvider, LlmRequest } from './types';
 
-// Faithful to @google/genai v2 `ai.models.*`. Verify against ai.google.dev when a key is present;
-// the mock provider is the offline-tested path.
+
 const TIMEOUT_MS = 18_000;
 const MAX_JSON_RETRIES = 1;
-// Bounded thinking for the reasoning tiers: enough to reason about a resolution, not so much it stalls the chat.
+// Bounded thinking for the reasoning tiers
 const THINKING_BUDGET = 512;
 
 export function createGeminiLlm(apiKey: string): LlmProvider {
   const ai = new GoogleGenAI({ apiKey });
 
   const contents = (req: LlmRequest) => {
-    // Strip PII (phone/email/UPI/card) before it leaves for a third-party model — the agent never needs it.
+    // Strip PII (phone/email/UPI/card) before it leaves for a third-party model
     const parts: Array<Record<string, unknown>> = [{ text: redactPii(req.prompt) }];
     for (const img of req.images ?? []) parts.push({ inlineData: { mimeType: img.mimeType, data: img.dataBase64 } });
     return [{ role: 'user', parts }];
@@ -26,7 +25,6 @@ export function createGeminiLlm(apiKey: string): LlmProvider {
     const tier = req.tier ?? 'smart';
     const cfg: Record<string, unknown> = { abortSignal: req.signal, httpOptions: { timeout: TIMEOUT_MS }, maxOutputTokens: tier === 'fast' ? 256 : 2048 };
     if (req.system) cfg.systemInstruction = req.system;
-    // Thinking off on the cheap routing/sentiment path; bounded thinking on the reasoning tiers.
     cfg.thinkingConfig = { thinkingBudget: tier === 'fast' ? 0 : THINKING_BUDGET };
     return cfg;
   };

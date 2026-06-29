@@ -40,7 +40,7 @@ export function parseInbound(body: unknown): InboundWa | null {
   return { from: msg.from, text: msg.text.body, messageId: msg.id };
 }
 
-// The exact Graph API request body we'd POST to reply (shown in the UI; sent for real in live mode).
+// The exact Graph API request body we'd POST to reply
 export function buildSendPayload(to: string, text: string) {
   return { messaging_product: 'whatsapp', recipient_type: 'individual', to, type: 'text', text: { body: text } };
 }

@@ -1,4 +1,4 @@
-import type { ChatResponse, Conversation, Customer, FaqCategory, Message, Order, OrderWithItems, Refund, Scenario, Trace, Wallet } from './types';
+import type { ChatResponse, Conversation, Customer, FaqCategory, Message, Order, OrderWithItems, Refund, Trace, Wallet } from './types';
 
 async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init);
@@ -22,11 +22,8 @@ export interface ChatBody {
 export const api = {
   chat: (body: ChatBody) => postJson<ChatResponse>('/api/chat', body),
   faq: () => jsonFetch<FaqCategory[]>('/api/faq'),
-  scenarios: () => jsonFetch<Scenario[]>('/api/scenarios'),
   profiles: () => jsonFetch<Customer[]>('/api/profiles'),
   profile: (id: string) => jsonFetch<{ customer: Customer; wallet: Wallet | null; orders: Order[] }>(`/api/profiles/${id}`),
-  createProfile: (body: { name: string; area?: string; accountAgeDays?: number }) => postJson<Customer>('/api/profiles', body),
-  createOrder: (id: string, body: unknown) => postJson<{ orderId: string }>(`/api/profiles/${id}/orders`, body),
   orders: (id: string) => jsonFetch<OrderWithItems[]>(`/api/profiles/${id}/orders`),
   threads: (id: string) => jsonFetch<Conversation[]>(`/api/profiles/${id}/threads`),
   refunds: (id: string) => jsonFetch<{ refunds: Refund[]; activeCount: number }>(`/api/profiles/${id}/refunds`),

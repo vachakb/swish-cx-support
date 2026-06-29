@@ -31,11 +31,6 @@ describe('API', () => {
     expect(await res.text()).toBe('xyz');
   });
 
-  it('GET /api/scenarios returns a list', async () => {
-    const res = await get('/api/scenarios');
-    expect(Array.isArray(await res.json())).toBe(true);
-  });
-
   it('parseInbound reads a real WABA text payload and ignores junk', () => {
     const payload = { entry: [{ changes: [{ value: { messages: [{ from: '919900000000', id: 'wamid.1', type: 'text', text: { body: 'hi' } }] } }] }] };
     expect(parseInbound(payload)?.text).toBe('hi');

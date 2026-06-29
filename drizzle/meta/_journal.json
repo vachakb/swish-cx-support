@@ -15,6 +15,13 @@
       "when": 1782722014779,
       "tag": "0001_clever_madripoor",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1782746369335,
+      "tag": "0002_salty_metal_master",
+      "breakpoints": true
     }
   ]
 }

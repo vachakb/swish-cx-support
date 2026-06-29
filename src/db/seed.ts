@@ -10,7 +10,6 @@ import {
   orderTracking,
   orders,
   resolutions,
-  scenarios,
   serviceability,
   traces,
   wallets,
@@ -30,7 +29,7 @@ const plusMins = (d: Date, n: number) => new Date(d.getTime() + n * 60_000);
 const inMins = (n: number) => new Date(NOW + n * 60_000);
 
 async function clear() {
-  for (const t of [traces, auditLog, resolutions, attachments, messages, scenarios, conversations, orderTracking, orderItems, orders, serviceability, wallets, customers, faqArticles, faqCategories]) {
+  for (const t of [traces, auditLog, resolutions, attachments, messages, conversations, orderTracking, orderItems, orders, serviceability, wallets, customers, faqArticles, faqCategories]) {
     await db.delete(t);
   }
 }

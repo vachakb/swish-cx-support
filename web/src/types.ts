@@ -47,17 +47,6 @@ export interface Refund {
   active: boolean;
 }
 
-export interface Scenario {
-  id: string;
-  title: string;
-  description: string;
-  customerId: string;
-  orderId?: string | null;
-  channel: 'web' | 'whatsapp';
-  suggestedMessage: string;
-  tags?: string[] | null;
-}
-
 export interface TraceStep {
   stage: string;
   ms: number;
