@@ -3,17 +3,9 @@ import { api } from '../api';
 import { ensureNotifyPermission, notify } from '../notify';
 import type { Message, Trace } from '../types';
 import { Chat } from './Chat';
-import { ProfilePanel } from './ProfilePanel';
-import type { OrderPreset, ProfileDetail } from './ProfilePanel';
 import { TracePanel } from './TracePanel';
 
 type ImagePayload = { mimeType: string; dataBase64: string };
-
-const ORDER_PRESETS: Record<OrderPreset, unknown> = {
-  stuck: { status: 'arriving', promisedInMin: -12, items: [{ name: 'Masala Chai', quantity: 2, unitPrice: 4000 }, { name: 'Veg Biryani', quantity: 1, unitPrice: 18000 }], tracking: { etaSeconds: 180, etaAgeSec: 1200, gpsAgeSec: 1200, stateAgeSec: 1200 } },
-  healthy: { status: 'dispatched', promisedInMin: 6, items: [{ name: 'Paneer Roll', quantity: 2, unitPrice: 9000 }], tracking: { etaSeconds: 300, etaAgeSec: 15, gpsAgeSec: 8, stateAgeSec: 90 } },
-  delivered: { status: 'delivered', promisedInMin: -50, items: [{ name: 'Filter Coffee', quantity: 1, unitPrice: 4000 }, { name: 'Masala Dosa', quantity: 1, unitPrice: 12000 }] },
-};
 
 interface ArenaProps {
   customerId?: string;
@@ -21,11 +13,11 @@ interface ArenaProps {
   active: boolean;
   resumeThreadId?: string;
   onResumed?: () => void;
+  onBack?: () => void;
 }
 
-export function Arena({ customerId, channel, active, resumeThreadId, onResumed }: ArenaProps) {
-  const [detail, setDetail] = useState<ProfileDetail | null>(null);
-  const [orderId, setOrderId] = useState<string>();
+// The support chat for the current customer over one channel, with a live decision trace.
+export function Arena({ customerId, channel, active, resumeThreadId, onResumed, onBack }: ArenaProps) {
   const [conversationId, setConversationId] = useState<string>();
   const [messages, setMessages] = useState<Message[]>([]);
   const [trace, setTrace] = useState<Trace | null>(null);
@@ -39,23 +31,8 @@ export function Arena({ customerId, channel, active, resumeThreadId, onResumed }
     setMessages([]);
     setTrace(null);
     setStatus(undefined);
-    setOrderId(undefined);
     seenAgent.current = new Set();
   }
-
-  async function loadProfile(id: string) {
-    try {
-      setDetail(await api.profile(id));
-    } catch {
-      setDetail(null);
-    }
-  }
-
-  // Current user changed → load their context and start a fresh thread.
-  useEffect(() => {
-    resetThread();
-    if (customerId) void loadProfile(customerId);
-  }, [customerId]);
 
   // Resume a reopened thread: load its messages and continue it.
   useEffect(() => {
@@ -94,17 +71,6 @@ export function Arena({ customerId, channel, active, resumeThreadId, onResumed }
     return () => clearInterval(iv);
   }, [conversationId, active]);
 
-  async function createOrder(preset: OrderPreset) {
-    if (!customerId) return;
-    try {
-      await api.createOrder(customerId, ORDER_PRESETS[preset]);
-      setOrderId(undefined);
-      await loadProfile(customerId);
-    } catch {
-      /* ignore */
-    }
-  }
-
   function appended(role: Message['role'], text: string): Message {
     return { id: crypto.randomUUID(), role, text, createdAt: '' };
   }
@@ -115,12 +81,11 @@ export function Arena({ customerId, channel, active, resumeThreadId, onResumed }
     setMessages((m) => [...m, appended('user', text)]);
     setDraft('');
     try {
-      const { result, trace: t } = await api.chat({ conversationId, customerId, orderId, channel, text, image });
+      const { result, trace: t } = await api.chat({ conversationId, customerId, channel, text, image });
       setConversationId(result.conversationId);
       setTrace(t);
       setStatus(result.status);
       setMessages((m) => [...m, appended('assistant', result.reply)]);
-      if (customerId) void loadProfile(customerId);
     } catch {
       setMessages((m) => [...m, appended('assistant', 'Sorry — I had trouble reaching support just now. Please try again.')]);
     } finally {
@@ -129,14 +94,14 @@ export function Arena({ customerId, channel, active, resumeThreadId, onResumed }
   }
 
   return (
-    <div className="grid h-full grid-cols-[280px_1fr_330px] max-lg:grid-cols-1 max-lg:overflow-y-auto">
-      <aside className="border-r border-neutral-200 bg-white max-lg:border-b">
-        <ProfilePanel detail={detail} onCreateOrder={createOrder} onNewChat={resetThread} />
-      </aside>
+    <div className="grid h-full grid-cols-[1fr_320px] max-lg:grid-cols-1 max-lg:overflow-y-auto">
       <section className="flex min-h-0 flex-col max-lg:h-[70vh]">
         <div className="flex items-center justify-between border-b border-neutral-200 bg-white px-4 py-2">
-          <div className="text-sm text-neutral-600">{detail ? <>Acting as <span className="font-medium text-neutral-800">{detail.customer.name}</span></> : 'Select a profile to start'}</div>
-          <div className="text-xs text-neutral-400">{channel === 'whatsapp' ? 'WhatsApp channel' : 'In-app chat'}</div>
+          <div className="flex items-center gap-2">
+            {onBack && <button type="button" onClick={onBack} className="text-lg leading-none text-neutral-700">←</button>}
+            <span className="text-sm font-medium text-neutral-700">{channel === 'whatsapp' ? 'WhatsApp' : 'Support chat'}</span>
+          </div>
+          <button type="button" onClick={resetThread} className="rounded-md border border-neutral-200 px-2.5 py-1 text-xs text-neutral-600 hover:bg-neutral-50">+ New chat</button>
         </div>
         <div className="min-h-0 flex-1">
           <Chat messages={messages} sending={sending} channel={channel} draft={draft} onSend={send} />
