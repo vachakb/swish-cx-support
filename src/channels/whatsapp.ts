@@ -40,12 +40,17 @@ export function parseInbound(body: unknown): InboundWa | null {
   return { from: msg.from, text: msg.text.body, messageId: msg.id };
 }
 
+// The exact Graph API request body we'd POST to reply (shown in the UI; sent for real in live mode).
+export function buildSendPayload(to: string, text: string) {
+  return { messaging_product: 'whatsapp', recipient_type: 'individual', to, type: 'text', text: { body: text } };
+}
+
 export async function sendMessage(to: string, text: string, signal?: AbortSignal): Promise<void> {
-  if (!config.whatsapp.live) return; // sim mode
+  if (!config.whatsapp.live) return; // sim mode — the UI surfaces buildSendPayload instead
   await fetch(`${config.whatsapp.graphBase}/${config.whatsapp.phoneNumberId}/messages`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${config.whatsapp.accessToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messaging_product: 'whatsapp', recipient_type: 'individual', to, type: 'text', text: { body: text } }),
+    body: JSON.stringify(buildSendPayload(to, text)),
     signal: signal ?? AbortSignal.timeout(8000),
   });
 }

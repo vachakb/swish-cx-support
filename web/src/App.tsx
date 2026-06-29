@@ -4,6 +4,7 @@ import { api } from './api';
 import { Arena } from './components/Arena';
 import { Home } from './components/Home';
 import { Inbox } from './components/Inbox';
+import { WhatsApp } from './components/WhatsApp';
 
 type View = 'home' | 'chat' | 'whatsapp' | 'inbox';
 
@@ -44,9 +45,7 @@ export default function App() {
         <div className={view === 'chat' ? 'h-full' : 'hidden'}>
           <Arena customerId={userId} channel="web" active={view === 'chat'} resumeThreadId={resumeThreadId} onResumed={() => setResumeThreadId(undefined)} onBack={() => setView('home')} />
         </div>
-        <div className={view === 'whatsapp' ? 'h-full' : 'hidden'}>
-          <Arena customerId={userId} channel="whatsapp" active={view === 'whatsapp'} />
-        </div>
+        {view === 'whatsapp' && <WhatsApp customerId={userId} />}
         {view === 'inbox' && <Inbox active />}
       </main>
     </div>

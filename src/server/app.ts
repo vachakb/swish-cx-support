@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import * as z from 'zod';
 import { engine } from '../app';
-import { parseInbound, sendMessage, verifyWebhook } from '../channels/whatsapp';
+import { buildSendPayload, parseInbound, sendMessage, verifyWebhook } from '../channels/whatsapp';
 import { config } from '../config';
 import { channels, conversationStatuses, orderStatuses } from '../db/schema';
 import { INACTIVITY_CLOSE_MS } from '../pipeline/lifecycle';
@@ -128,8 +128,10 @@ app.get('/api/whatsapp/webhook', (c) => {
 app.post('/api/whatsapp/webhook', async (c) => {
   const inbound = parseInbound(await c.req.json().catch(() => null));
   if (!inbound) return c.json({ ok: true }); // ignore non-text/status events
-  const customer = await repo.getCustomerByPhone(inbound.from);
+  // Meta sends the wa_id as digits; our customers are stored E.164 (+…).
+  const phone = inbound.from.startsWith('+') ? inbound.from : `+${inbound.from}`;
+  const customer = await repo.getCustomerByPhone(phone);
   const result = await engine.run({ channel: 'whatsapp', text: inbound.text, customerId: customer?.id });
   await sendMessage(inbound.from, result.reply);
-  return c.json({ ok: true, reply: result.reply, result });
+  return c.json({ ok: true, reply: result.reply, outbound: buildSendPayload(inbound.from, result.reply), mode: config.whatsapp.live ? 'live' : 'sim' });
 });
