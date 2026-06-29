@@ -1,6 +1,6 @@
 # CLAUDE.md — Swish Support Copilot
 
-Conventions for this repo. Read before writing code. **Frontend-specific rules live in [`web/CLAUDE.md`](web/CLAUDE.md).** Design rationale: [`docs/research.md`](docs/research.md), [`docs/approaches-and-decisions.md`](docs/approaches-and-decisions.md).
+Conventions for this repo. Read before writing code. **Frontend-specific rules live in [`web/CLAUDE.md`](web/CLAUDE.md).**
 
 ## What this is
 Automated customer-support engine for **Swish** (10-min food delivery): resolves FAQ + order issues, escalates gracefully, plugs into Swish's stack. **The engine is the product; the web UI is a demo surface.**
@@ -80,7 +80,6 @@ Invariants: handlers are pure where possible (`input → Result`), return discri
 - Clean, modular, DRY — reuse helpers, one responsibility per file, **short comments that explain *why*, not *what***. No overengineering, no speculative abstraction.
 - Performance first: prepared statements, no sync IO on hot paths, tiered models, keep the cheap path cheap.
 - **CX voice:** responses use Swish's warm, concrete brand voice — personalised, *not* a generic "AI assistant." Don't overdo it.
-- **Commits:** author `vachakb`, **no Claude co-author trailer**, short imperative messages, commit regularly.
 
 ## Commands
 - `npm run dev` — API + web together · `npm run setup` — migrate + seed
