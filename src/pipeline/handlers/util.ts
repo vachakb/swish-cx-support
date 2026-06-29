@@ -1,4 +1,21 @@
+import { formatINR } from '../../core/money';
+import type { Order } from '../../repositories';
 import type { Providers } from '../../providers/types';
+import type { Suggestion } from '../types';
+
+// Selectable order chips (first item + total, carrying the orderId) — so "which order?" actually lets
+// the customer pick one rather than the bot auto-guessing. Shared by the cancel and issue flows.
+export async function orderChips(providers: Providers, orders: Order[], send: string): Promise<Suggestion[]> {
+  const chips: Suggestion[] = [];
+  for (const o of orders) {
+    const details = await providers.orders.getOrderDetails(o.id);
+    const items = details?.items ?? [];
+    const first = items[0];
+    const name = first ? `${first.name}${items.length > 1 ? ` +${items.length - 1}` : ''}` : 'Order';
+    chips.push({ label: `${name} · ${formatINR(o.total)}`, send, orderId: o.id });
+  }
+  return chips;
+}
 
 const TERMINAL = new Set(['delivered', 'cancelled']);
 const DELIVERING = new Set(['packed', 'dispatched', 'arriving']);

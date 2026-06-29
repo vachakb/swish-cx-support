@@ -8,15 +8,8 @@ import { assessImage } from '../image';
 import { buildUserMemory } from '../memory';
 import { resolveIssue } from '../resolve';
 import type { ResolveDecision } from '../resolve';
-import type { Handler, HandlerDeps, HandlerResult, Suggestion, TurnContext } from '../types';
-import { pickOrderId } from './util';
-
-// A short chip label for an order the customer can pick (first item + total) — never the raw id.
-function cancelLabel(order: Order, items: OrderItem[]): string {
-  const first = items[0];
-  const name = first ? `${first.name}${items.length > 1 ? ` +${items.length - 1}` : ''}` : 'Order';
-  return `${name} · ${formatINR(order.total)}`;
-}
+import type { Handler, HandlerDeps, HandlerResult, TurnContext } from '../types';
+import { orderChips } from './util';
 
 const CANCELLABLE = new Set(['placed', 'preparing']);
 // Yes/no parsing for the cancel confirmation step.
@@ -79,11 +72,7 @@ async function handleCancel(ctx: TurnContext, deps: HandlerDeps): Promise<Handle
     if (cancellable.length === 0) {
       return { reply: "I don't see an order that can still be cancelled — once we start cooking (within a minute or two) it's on its way. If something's wrong with one that's arriving or delivered, tell me and I'll make it right.", status: 'awaiting_user' };
     }
-    const chips: Suggestion[] = [];
-    for (const o of cancellable) {
-      const d = await deps.providers.orders.getOrderDetails(o.id);
-      chips.push({ label: cancelLabel(o, d?.items ?? []), send: 'cancel this order', orderId: o.id });
-    }
+    const chips = await orderChips(deps.providers, cancellable, 'cancel this order');
     return { reply: 'Sure — which order would you like to cancel? Tap it below.', status: 'awaiting_user', suggestions: chips, data: { kind: 'clarify', intent: 'cancel_order', topic: 'cancel_pick' } };
   }
 
@@ -235,9 +224,15 @@ export const orderActionHandler: Handler = {
   intents: ['order_issue', 'cancel_order'],
   async handle(ctx, deps) {
     if (ctx.route.intent === 'cancel_order') return handleCancel(ctx, deps);
-    const orderId = ctx.orderId ?? (await pickOrderId(deps.providers, ctx.customerId, 'delivered'));
-    if (!orderId) return { reply: "Sure — which order is this about? Tap it from your orders list and I'll jump right in.", status: 'awaiting_user' };
-    const details = await deps.providers.orders.getOrderDetails(orderId);
+    // No specific order in context → ask which one (never auto-pick the order for an issue).
+    if (!ctx.orderId) {
+      const orders = ctx.customerId ? await deps.providers.orders.listOrdersByCustomer(ctx.customerId) : [];
+      const relevant = orders.filter((o) => o.status !== 'cancelled');
+      if (relevant.length === 0) return { reply: "I'm sorry something's not right! I don't see a recent order on your account — could you tell me a bit more about what happened?", status: 'awaiting_user' };
+      const chips = await orderChips(deps.providers, relevant.slice(0, 5), "it's about this order");
+      return { reply: "I'm sorry to hear that! Which order is this about?", status: 'awaiting_user', suggestions: chips, data: { kind: 'clarify', intent: 'order_issue', topic: 'issue_pick' } };
+    }
+    const details = await deps.providers.orders.getOrderDetails(ctx.orderId);
     if (!details) return { reply: "I couldn't find that order — could you double-check it?", status: 'awaiting_user' };
     return handleIssue(ctx, deps, details.order, details.items);
   },
