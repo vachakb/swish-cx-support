@@ -47,7 +47,7 @@ export function Home({ customerId, onOpenChat, onResumeThread }: HomeProps) {
     return (
       <Panel>
         <SubHeader title={topic.title} onBack={() => setView('home')} />
-        <div>
+        <div className="rounded-2xl border border-neutral-200 bg-white px-4">
           {topic.articles.map((a, i) => (
             <button key={a.id} type="button" onClick={() => { setArticle(a); setView('article'); }} className={`flex w-full items-start justify-between gap-3 py-3.5 text-left ${i > 0 ? 'border-t border-neutral-100' : ''}`}>
               <span className="text-[15px] font-semibold text-neutral-700">{a.question}</span>
@@ -63,9 +63,11 @@ export function Home({ customerId, onOpenChat, onResumeThread }: HomeProps) {
     return (
       <Panel>
         <SubHeader title={topic.title} onBack={() => setView('topic')} />
-        <h2 className="text-lg font-bold text-neutral-900">{article.question}</h2>
-        <p className="mt-2 text-[15px] leading-relaxed text-neutral-600">{article.answer}</p>
-        <button type="button" onClick={onOpenChat} className="mt-4 text-sm font-semibold text-swish-600">Still need help? Chat with us →</button>
+        <div className="rounded-2xl border border-neutral-200 bg-white p-4">
+          <h2 className="text-lg font-bold text-neutral-900">{article.question}</h2>
+          <p className="mt-2 text-[15px] leading-relaxed text-neutral-600">{article.answer}</p>
+          <button type="button" onClick={onOpenChat} className="mt-4 text-sm font-semibold text-swish-600">Still need help? Chat with us →</button>
+        </div>
       </Panel>
     );
   }
@@ -118,8 +120,10 @@ export function Home({ customerId, onOpenChat, onResumeThread }: HomeProps) {
       <SectionHeader title="Recent Orders" onViewAll={orders.length ? () => setView('orders') : undefined} />
       {orders.length === 0 ? <CardEmpty>No orders yet.</CardEmpty> : <OrderCarousel orders={orders.slice(0, 3)} onNeedHelp={onOpenChat} />}
 
-      <h2 className="mb-1 mt-6 text-2xl font-bold text-neutral-900">All Help Topics</h2>
-      <Faq categories={faq} onPick={(c) => { setTopic(c); setView('topic'); }} />
+      <h2 className="mb-2 mt-6 text-2xl font-bold text-neutral-900">All Help Topics</h2>
+      <div className="rounded-2xl border border-neutral-200 bg-white px-4">
+        <Faq categories={faq} onPick={(c) => { setTopic(c); setView('topic'); }} />
+      </div>
 
       <button type="button" onClick={onOpenChat} className="mt-5 w-full rounded-xl bg-swish-500 py-3 text-sm font-semibold text-white hover:bg-swish-600">Chat with support</button>
     </Panel>
