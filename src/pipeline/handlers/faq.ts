@@ -3,7 +3,7 @@ import * as repo from '../../repositories';
 import { answerKnowledge } from '../knowledge';
 import type { Handler, HandlerDeps, HandlerResult, TurnContext } from '../types';
 
-const REFUND_PROCESSING_MS = 7 * 24 * 60 * 60 * 1000; // Swish ToS: refunds processed within 7 business days of verification
+const REFUND_PROCESSING_MS = 7 * 24 * 60 * 60 * 1000;
 
 // Refund status is a precise, factual lookup — kept deterministic rather than handed to the LLM.
 async function refundStatus(ctx: TurnContext): Promise<HandlerResult> {
@@ -30,8 +30,6 @@ export const faqHandler: Handler = {
   intents: ['faq', 'referral_status', 'refund_status'],
   async handle(ctx, deps) {
     if (ctx.route.intent === 'refund_status') return refundStatus(ctx);
-    // Serviceability, referrals, how-tos: the LLM answers the SPECIFIC question grounded in real facts
-    // (areas we serve, the customer's referral data, the help articles) — no keyword→canned-response.
     const answer = await answerKnowledge({ llm: deps.llm, message: ctx.input.text, history: ctx.history.slice(0, -1), customerId: ctx.customerId, providers: deps.providers });
     return {
       reply: answer.reply,

@@ -12,7 +12,7 @@ export interface UserMemory {
 
 const CLAIM = new Set(['refund', 'credit']);
 
-// A compact "who is this customer" snapshot the resolution agent reasons with.
+
 export async function buildUserMemory(customerId: string, providers: Providers): Promise<UserMemory> {
   const since = new Date(Date.now() - 7 * 86_400_000);
   const [customer, orders, all, wallet] = await Promise.all([

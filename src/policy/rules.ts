@@ -1,8 +1,7 @@
 import type { RuleProperties } from 'json-rules-engine';
 import { policyConfig } from './config';
 
-// Each rule encodes a condition under which we must NOT silently auto-approve.
-// If no rule fires, the claim auto-approves. Event type = the outcome it forces.
+
 export const claimRules: RuleProperties[] = [
   {
     conditions: { all: [{ fact: 'amount', operator: 'greaterThan', value: policyConfig.autoApproveCapPaise }] },

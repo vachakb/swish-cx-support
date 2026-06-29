@@ -3,8 +3,7 @@ import type { Order } from '../../repositories';
 import type { Providers } from '../../providers/types';
 import type { Suggestion } from '../types';
 
-// Selectable order chips (first item + total, carrying the orderId) — so "which order?" actually lets
-// the customer pick one rather than the bot auto-guessing. Shared by the cancel and issue flows.
+// Selectable order chips (first item + total, carrying the orderId)
 export async function orderChips(providers: Providers, orders: Order[], send: string): Promise<Suggestion[]> {
   const chips: Suggestion[] = [];
   for (const o of orders) {
@@ -21,8 +20,7 @@ const TERMINAL = new Set(['delivered', 'cancelled']);
 const DELIVERING = new Set(['packed', 'dispatched', 'arriving']);
 const CANCELLABLE = new Set(['placed', 'preparing']);
 
-// Pick the most relevant order when the customer didn't name one:
-// WISMO wants an out-for-delivery order, cancel wants a cancellable one, issues want a delivered one.
+
 export async function pickOrderId(
   providers: Providers,
   customerId: string | undefined,

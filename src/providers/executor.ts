@@ -44,8 +44,7 @@ async function applySideEffects(tx: Parameters<Parameters<typeof db.transaction>
   } else if (req.type === 'cancel') {
     await tx.update(orders).set({ status: 'cancelled', updatedAt: new Date() }).where(eq(orders.id, req.orderId));
   }
-  // refund → a real executor calls the payment gateway; here the resolution row is the record of record.
-  // redeliver / reassign_rider → operational dispatch in production; recorded as a resolution here.
+
 }
 
 export const mockExecutor: ActionExecutor = {
@@ -76,7 +75,7 @@ export const mockExecutor: ActionExecutor = {
         await applySideEffects(tx, req);
       });
     } catch {
-      // Lost the race on the unique idempotency key → another call already executed it.
+
       const dup = await getResolutionByKey(req.idempotencyKey);
       if (dup) return { status: 'duplicate', resolutionId: dup.id, message: IDEMPOTENT };
       return { status: 'failed', message: 'execution failed' };

@@ -16,9 +16,7 @@ intent is one of: ${intents.join(', ')}.
 greeting=hi/hello; faq=general questions (how referral works, serviceability, policy); referral_status=asking where their referral reward is; order_status=where is my order / ETA; order_issue=spillage/missing/wrong/damaged item; cancel_order=cancel request; human=wants a person; closing=thanks/that's all/goodbye (issue resolved); unknown=anything else.
 Also return confidence 0-1, sentiment (positive|neutral|negative|angry), and language (en|hi|hinglish).`;
 
-// Deterministic rules for the costly/critical intents — never gambled on a probabilistic classifier.
-// Order matters — earlier rules win. Referral/reward is checked before order_status so
-// "where is my referral reward" doesn't get caught by the "where is" tracking pattern.
+
 const RULES: Array<{ re: RegExp; intent: Intent }> = [
   { re: /\b(human|live) agent\b|\b(talk|speak|connect|transfer|chat|get|put|reach|need|want)\b[^.!?]{0,25}\b(human|agent|person|representative|someone|teammate)\b/i, intent: 'human' },
   { re: /\b(misconduct|misbehav|rude|abusive|harass(ed|ment)?|inappropriate|unprofessional|unsafe|delivery (partner|executive|agent|boy))\b/i, intent: 'order_issue' },
@@ -66,15 +64,12 @@ function extractOrderRef(text: string): string | undefined {
   return text.match(ORDER_REF)?.[1];
 }
 
-// The clarifying question we're awaiting an answer to — lets the classifier judge a reply in context.
 export interface PendingContext {
   question: string;
   intent: Intent;
 }
 
-// Hybrid: rules short-circuit the critical intents; a cheap model classifies the rest. When we're
-// mid-flow, the classifier is told what we just asked, so it can tell a continuation from a topic
-// switch ("midflow intent switching") rather than guessing from the message alone.
+
 export async function route(text: string, llm: LlmProvider, signal?: AbortSignal, pending?: PendingContext): Promise<RouteResult> {
   const ruled = ruleIntent(text);
   if (ruled) {

@@ -20,7 +20,7 @@ const SERIOUS = /\b(bug|insect|cockroach|roach|worm|maggot|hair|glass|plastic|me
 const MISSING = /\b(missing|didn'?t (get|receive)|only (got|received)|received only|short|incomplete|forgot|left out|not (in|included))\b/i;
 type Remedy = ResolveDecision['remedy'];
 
-// Actually run the cancellation (idempotent) — only reached after the customer explicitly confirms.
+
 async function executeCancel(ctx: TurnContext, deps: HandlerDeps, order: Order): Promise<HandlerResult> {
   const action: ActionRequest = {
     type: 'cancel',
@@ -43,13 +43,12 @@ async function executeCancel(ctx: TurnContext, deps: HandlerDeps, order: Order):
   };
 }
 
-// Cancelling is destructive and moves money, so the model never executes it directly: it names the
-// specific order, confirms, and acts only on an explicit "yes".
+
 async function handleCancel(ctx: TurnContext, deps: HandlerDeps): Promise<HandlerResult> {
   const lastBot = [...ctx.history].reverse().find((m) => m.role === 'assistant');
   const pending = lastBot?.payload as { kind?: string; topic?: string; orderId?: string } | null | undefined;
 
-  // Step 2 — answering the confirmation we asked for last turn.
+
   if (pending?.kind === 'clarify' && pending.topic === 'cancel_confirm' && pending.orderId) {
     if (DECLINE.test(ctx.input.text)) {
       return { reply: "No worries — I've left your order exactly as it is. Anything else I can help with?", status: 'awaiting_user', data: { kind: 'cancel', allowed: false } };
@@ -60,12 +59,11 @@ async function handleCancel(ctx: TurnContext, deps: HandlerDeps): Promise<Handle
       if (!CANCELLABLE.has(order.status)) return { reply: `That order's already ${order.status}, so there's nothing to cancel now.`, status: 'resolved', data: { kind: 'cancel', allowed: false } };
       return executeCancel(ctx, deps, order);
     }
-    // Unclear answer → ask once more, keep the same order pending.
+
     return { reply: 'Just so I get it right — should I go ahead and cancel it? (yes / no)', status: 'awaiting_user', suggestions: ['Yes, cancel it', 'No, keep it'], data: { kind: 'clarify', intent: 'cancel_order', topic: 'cancel_confirm', orderId: pending.orderId } };
   }
 
-  // Step 1 — no specific order yet → ask the customer to pick from the orders that can still be cancelled.
-  // (We never auto-pick an order the customer didn't name for a destructive action.)
+
   if (!ctx.orderId) {
     const orders = ctx.customerId ? await deps.providers.orders.listOrdersByCustomer(ctx.customerId) : [];
     const cancellable = orders.filter((o) => CANCELLABLE.has(o.status));
@@ -76,7 +74,7 @@ async function handleCancel(ctx: TurnContext, deps: HandlerDeps): Promise<Handle
     return { reply: 'Sure — which order would you like to cancel? Tap it below.', status: 'awaiting_user', suggestions: chips, data: { kind: 'clarify', intent: 'cancel_order', topic: 'cancel_pick' } };
   }
 
-  // Step 1b — a specific order is in context → confirm before touching anything.
+
   const details = await deps.providers.orders.getOrderDetails(ctx.orderId);
   if (!details) return { reply: "I couldn't find that order — could you double-check it?", status: 'awaiting_user' };
   const { order, items } = details;
@@ -97,7 +95,7 @@ async function handleCancel(ctx: TurnContext, deps: HandlerDeps): Promise<Handle
   };
 }
 
-// Turn the agent's proposed remedy into a concrete, idempotent action for the executor.
+
 function toAction(remedy: Remedy, amountPaise: number, reason: string, order: Order, ctx: TurnContext): ActionRequest | null {
   const amount = Math.min(amountPaise, order.total);
   const base = {
@@ -115,7 +113,7 @@ function toAction(remedy: Remedy, amountPaise: number, reason: string, order: Or
 async function handleIssue(ctx: TurnContext, deps: HandlerDeps, order: Order, items: OrderItem[]): Promise<HandlerResult> {
   const memory = await buildUserMemory(order.customerId, deps.providers);
 
-  // A photo is scored once and checked for reuse across tickets, then fed to the agent as evidence.
+
   let image: VisionScore | undefined;
   let imageDuplicate = false;
   if (ctx.input.image) {
@@ -125,7 +123,7 @@ async function handleIssue(ctx: TurnContext, deps: HandlerDeps, order: Order, it
     imageDuplicate = assessment.duplicate;
   }
 
-  // The agent diagnoses, decides whether it needs more info, and proposes a right-sized remedy.
+
   const decision = await resolveIssue({
     llm: deps.llm,
     message: ctx.input.text,
@@ -137,18 +135,18 @@ async function handleIssue(ctx: TurnContext, deps: HandlerDeps, order: Order, it
   });
   deps.tracer.note('resolve', { diagnosis: decision.diagnosis, sentiment: decision.sentiment, needMoreInfo: decision.needMoreInfo, remedy: decision.remedy, amountPaise: decision.amountPaise });
 
-  // Conduct/safety report, payment dispute, or anything outside an order remedy → hand to a human WITH the context the agent gathered.
+
   if (!decision.needMoreInfo && decision.remedy === 'escalate') {
     return { reply: decision.reply, status: 'escalated', escalationReason: decision.diagnosis || 'needs a teammate', polish: false, suggestions: decision.suggestions, data: { kind: 'resolution', diagnosis: decision.diagnosis, outcome: 'escalate' } };
   }
 
-  // Clarifying question or no money action → reply and wait, don't touch the wallet.
+
   const acting = !decision.needMoreInfo && decision.remedy !== 'none' && (decision.remedy === 'redeliver' || decision.amountPaise > 0);
   if (!acting) {
     return { reply: decision.reply, status: 'awaiting_user', polish: false, suggestions: decision.suggestions, data: { kind: 'clarify', diagnosis: decision.diagnosis } };
   }
 
-  // Food-safety claims never auto-pay, photo or not — a human reviews them with priority.
+
   if (SERIOUS.test(ctx.input.text) || SERIOUS.test(decision.diagnosis)) {
     return {
       reply: "I'm really sorry — a possible food-safety issue like this is something I want our team to review properly and fast. I've flagged it with all the details (a photo helps if you have one), and a teammate will be straight in touch to make it right.",
@@ -159,8 +157,7 @@ async function handleIssue(ctx: TurnContext, deps: HandlerDeps, order: Order, it
     };
   }
 
-  // Money needs verification. A missing item can't be photographed → check with the kitchen/packing team.
-  // Any other credit/refund needs photo proof before it moves.
+
   if (decision.remedy === 'credit' || decision.remedy === 'refund') {
     if (MISSING.test(ctx.input.text) || MISSING.test(decision.diagnosis)) {
       return {
@@ -181,7 +178,7 @@ async function handleIssue(ctx: TurnContext, deps: HandlerDeps, order: Order, it
     }
   }
 
-  // Deterministic safety gate: caps, fraud velocity, corroboration, image reuse. LLM proposes, this disposes.
+
   const action = toAction(decision.remedy, decision.amountPaise, decision.reason, order, ctx);
   if (!action) return { reply: decision.reply, status: 'awaiting_user', polish: false, data: { kind: 'clarify' } };
   const corroborated = order.status === 'delivered' && (!image || (image.issueType !== 'none' && image.issueType !== 'unclear' && image.confidence >= 0.5));
@@ -191,7 +188,7 @@ async function handleIssue(ctx: TurnContext, deps: HandlerDeps, order: Order, it
 
   if (policy.outcome === 'auto_approve') {
     const amount = 'amount' in action ? action.amount : 0;
-    // Refunds (cash back to the original method) always get a teammate's sign-off — never moved silently.
+
     if (action.type === 'refund') {
       return {
         reply: `Thanks for the details, and I'm sorry about this. I've put through a refund request for ${formatINR(amount)} — a teammate will review and process it shortly, and you'll get a confirmation the moment it's done.`,
@@ -224,7 +221,7 @@ export const orderActionHandler: Handler = {
   intents: ['order_issue', 'cancel_order'],
   async handle(ctx, deps) {
     if (ctx.route.intent === 'cancel_order') return handleCancel(ctx, deps);
-    // No specific order in context → ask which one (never auto-pick the order for an issue).
+
     if (!ctx.orderId) {
       const orders = ctx.customerId ? await deps.providers.orders.listOrdersByCustomer(ctx.customerId) : [];
       const relevant = orders.filter((o) => o.status !== 'cancelled');

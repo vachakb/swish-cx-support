@@ -35,12 +35,12 @@ export const orderInfoHandler: Handler = {
 
     const freshMin = truth.displayEtaSeconds != null ? Math.max(1, Math.round(truth.displayEtaSeconds / 60)) : null;
 
-    // Clean, fresh, on-time → fast honest template.
+
     if (truth.recommendation === 'show_eta' && freshMin != null) {
       return { reply: `Your order's on its way — about ${freshMin} min away 🛵 I'll keep an eye on it!`, status: 'resolved', data: { kind: 'eta', truth } };
     }
 
-    // Late / stale / stuck → a grounded, conversational reply. Never parrot a stale number; never auto-credit for a delay.
+
     const wismo = await composeWismo({
       llm: deps.llm,
       message: ctx.input.text,

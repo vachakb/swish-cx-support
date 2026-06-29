@@ -2,7 +2,7 @@ export type InputCheck = { ok: true; text: string } | { ok: false; reply: string
 
 const INJECTION = /\b(ignore (all |the )?(previous|prior|above)|disregard (previous|all)|system prompt|you are now|pretend to be)\b/gi;
 
-// Garbage-in guard. Cheap, deterministic; runs before any model call.
+
 export function checkInput(raw: string): InputCheck {
   const text = raw.trim();
   if (!text) return { ok: false, reply: 'Looks like that came through empty — what can I help you with?' };
@@ -12,14 +12,14 @@ export function checkInput(raw: string): InputCheck {
   if (text.length >= 6 && letters === 0) {
     return { ok: false, reply: "I didn't quite catch that — could you tell me in words what you need help with?" };
   }
-  // Strip prompt-injection attempts but keep helping with whatever else they said.
+
   const cleaned = text.replace(INJECTION, '').trim();
   return { ok: true, text: cleaned || text };
 }
 
 export type OutputCheck = { ok: true; text: string } | { ok: false; reason: string };
 
-// Garbage-out guard. The handler's facts are already grounded; this catches empties and persona/provider leaks.
+
 export function checkOutput(reply: string): OutputCheck {
   const text = reply.trim();
   if (!text) return { ok: false, reason: 'empty reply' };

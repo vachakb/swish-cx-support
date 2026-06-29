@@ -22,8 +22,7 @@ function mockVisionIssue(text: string): VisionScore['issueType'] {
   return 'unclear';
 }
 
-// Deterministic stand-ins for the LLM tasks, used for key-free runs and tests.
-// Routing doubles as the "rules-only" bake-off baseline.
+
 export function buildMockHandlers(): MockHandlers {
   return {
     json: {

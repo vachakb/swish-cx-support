@@ -10,8 +10,7 @@ export interface ImageAssessment {
   score: VisionScore;
 }
 
-// Integrity (perceptual-hash-ready: byte sha256 now) + a vision score. Duplicate = same image
-// already used on a DIFFERENT ticket — a fraud signal the policy engine acts on.
+
 export async function assessImage(
   llm: LlmProvider,
   conversationId: string,

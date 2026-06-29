@@ -5,8 +5,7 @@ import type { Message, Order, OrderItem } from '../repositories';
 import type { VisionScore } from '../types';
 import type { UserMemory } from './memory';
 
-// Flat schema (no nullable nested objects) — mirrors the route/vision schemas Gemini accepts.
-// remedy 'none' (or needMoreInfo) means "don't touch the wallet".
+
 const ResolveSchema = z.object({
   sentiment: z.enum(['positive', 'neutral', 'negative', 'angry']),
   diagnosis: z.string(),

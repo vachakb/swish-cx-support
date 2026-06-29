@@ -5,8 +5,7 @@ import type { Providers } from '../providers/types';
 import * as repo from '../repositories';
 import type { Message } from '../repositories';
 
-// Grounded answer for general questions (serviceability, referrals, how-tos). The LLM answers the
-// SPECIFIC question using only the facts we assemble — no keyword→canned-response sub-routing.
+
 const KnowledgeSchema = z.object({
   reply: z.string(),
   needsFollowup: z.boolean(), // true when we're asking the customer something (e.g. which area) → keep the thread open
