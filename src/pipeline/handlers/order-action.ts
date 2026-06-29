@@ -89,7 +89,7 @@ async function handleIssue(ctx: TurnContext, deps: HandlerDeps, order: Order): P
 export const orderActionHandler: Handler = {
   intents: ['order_issue', 'cancel_order'],
   async handle(ctx, deps) {
-    const prefer = ctx.route.intent === 'cancel_order' ? 'active' : 'delivered';
+    const prefer = ctx.route.intent === 'cancel_order' ? 'cancellable' : 'delivered';
     const orderId = ctx.orderId ?? (await pickOrderId(deps.providers, ctx.customerId, prefer));
     if (!orderId) return { reply: "Sure — which order is this about? Tap it from your orders list and I'll jump right in.", status: 'awaiting_user' };
     const order = await deps.providers.orders.getOrder(orderId);

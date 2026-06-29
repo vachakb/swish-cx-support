@@ -11,14 +11,16 @@ interface ArenaProps {
   customerId?: string;
   channel: 'web' | 'whatsapp';
   active: boolean;
+  initialOrderId?: string; // when opened from a specific order's "Need Help?"
   resumeThreadId?: string;
   onResumed?: () => void;
   onBack?: () => void;
 }
 
 // The support chat for the current customer over one channel, with a live decision trace.
-export function Arena({ customerId, channel, active, resumeThreadId, onResumed, onBack }: ArenaProps) {
+export function Arena({ customerId, channel, active, initialOrderId, resumeThreadId, onResumed, onBack }: ArenaProps) {
   const [conversationId, setConversationId] = useState<string>();
+  const [orderId, setOrderId] = useState<string | undefined>(initialOrderId);
   const [messages, setMessages] = useState<Message[]>([]);
   const [trace, setTrace] = useState<Trace | null>(null);
   const [status, setStatus] = useState<string>();
@@ -26,12 +28,23 @@ export function Arena({ customerId, channel, active, resumeThreadId, onResumed, 
   const [sending, setSending] = useState(false);
   const seenAgent = useRef<Set<string>>(new Set());
 
+  // Opened for a specific order → focus the chat on it (and start a fresh thread).
+  useEffect(() => {
+    setOrderId(initialOrderId);
+    if (initialOrderId) resetThread();
+  }, [initialOrderId]);
+
   function resetThread() {
     setConversationId(undefined);
     setMessages([]);
     setTrace(null);
     setStatus(undefined);
     seenAgent.current = new Set();
+  }
+
+  function newChat() {
+    resetThread();
+    setOrderId(undefined);
   }
 
   // Resume a reopened thread: load its messages and continue it.
@@ -81,7 +94,7 @@ export function Arena({ customerId, channel, active, resumeThreadId, onResumed, 
     setMessages((m) => [...m, appended('user', text)]);
     setDraft('');
     try {
-      const { result, trace: t } = await api.chat({ conversationId, customerId, channel, text, image });
+      const { result, trace: t } = await api.chat({ conversationId, customerId, orderId, channel, text, image });
       setConversationId(result.conversationId);
       setTrace(t);
       setStatus(result.status);
@@ -101,7 +114,7 @@ export function Arena({ customerId, channel, active, resumeThreadId, onResumed, 
             {onBack && <button type="button" onClick={onBack} className="text-lg leading-none text-neutral-700">←</button>}
             <span className="text-sm font-medium text-neutral-700">{channel === 'whatsapp' ? 'WhatsApp' : 'Support chat'}</span>
           </div>
-          <button type="button" onClick={resetThread} className="rounded-md border border-neutral-200 px-2.5 py-1 text-xs text-neutral-600 hover:bg-neutral-50">+ New chat</button>
+          <button type="button" onClick={newChat} className="rounded-md border border-neutral-200 px-2.5 py-1 text-xs text-neutral-600 hover:bg-neutral-50">+ New chat</button>
         </div>
         <div className="min-h-0 flex-1">
           <Chat messages={messages} sending={sending} channel={channel} draft={draft} onSend={send} />

@@ -9,7 +9,7 @@ import { CopyBtn, Empty, RefundIcon, SubHeader } from './ui';
 
 interface HomeProps {
   customerId?: string;
-  onOpenChat: () => void;
+  onOpenChat: (orderId?: string) => void;
   onResumeThread: (id: string) => void;
 }
 
@@ -66,7 +66,7 @@ export function Home({ customerId, onOpenChat, onResumeThread }: HomeProps) {
         <div className="rounded-2xl border border-neutral-200 bg-white p-4">
           <h2 className="text-lg font-bold text-neutral-900">{article.question}</h2>
           <p className="mt-2 text-[15px] leading-relaxed text-neutral-600">{article.answer}</p>
-          <button type="button" onClick={onOpenChat} className="mt-4 text-sm font-semibold text-swish-600">Still need help? Chat with us →</button>
+          <button type="button" onClick={() => onOpenChat()} className="mt-4 text-sm font-semibold text-swish-600">Still need help? Chat with us →</button>
         </div>
       </Panel>
     );
@@ -96,7 +96,7 @@ export function Home({ customerId, onOpenChat, onResumeThread }: HomeProps) {
     return (
       <Panel>
         <SubHeader title="Order History" onBack={() => setView('home')} />
-        <div className="space-y-3">{orders.length === 0 ? <Empty>No orders yet.</Empty> : orders.map((o) => <OrderCard key={o.id} order={o} variant="history" onNeedHelp={onOpenChat} />)}</div>
+        <div className="space-y-3">{orders.length === 0 ? <Empty>No orders yet.</Empty> : orders.map((o) => <OrderCard key={o.id} order={o} variant="history" onNeedHelp={() => onOpenChat(o.id)} />)}</div>
       </Panel>
     );
   }
@@ -125,7 +125,7 @@ export function Home({ customerId, onOpenChat, onResumeThread }: HomeProps) {
         <Faq categories={faq} onPick={(c) => { setTopic(c); setView('topic'); }} />
       </div>
 
-      <button type="button" onClick={onOpenChat} className="mt-5 w-full rounded-xl bg-swish-500 py-3 text-sm font-semibold text-white hover:bg-swish-600">Chat with support</button>
+      <button type="button" onClick={() => onOpenChat()} className="mt-5 w-full rounded-xl bg-swish-500 py-3 text-sm font-semibold text-white hover:bg-swish-600">Chat with support</button>
     </Panel>
   );
 }
@@ -185,13 +185,13 @@ function ArchiveCard({ t, onOpen }: { t: Conversation; onOpen: () => void }) {
   );
 }
 
-function OrderCarousel({ orders, onNeedHelp }: { orders: OrderWithItems[]; onNeedHelp: () => void }) {
+function OrderCarousel({ orders, onNeedHelp }: { orders: OrderWithItems[]; onNeedHelp: (id: string) => void }) {
   const [i, setI] = useState(0);
   const len = orders.length;
   const idx = ((i % len) + len) % len;
   return (
     <div>
-      <OrderCard order={orders[idx]!} variant="home" onNeedHelp={onNeedHelp} />
+      <OrderCard order={orders[idx]!} variant="home" onNeedHelp={() => onNeedHelp(orders[idx]!.id)} />
       {len > 1 && (
         <div className="mt-2.5 flex items-center justify-center gap-3">
           <button type="button" onClick={() => setI(i - 1)} className="text-neutral-400">‹</button>

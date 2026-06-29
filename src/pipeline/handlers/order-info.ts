@@ -30,7 +30,7 @@ async function proactiveGoodwill(conversationId: string, deps: HandlerDeps, orde
 export const orderInfoHandler: Handler = {
   intents: ['order_status'],
   async handle(ctx, deps) {
-    const orderId = ctx.orderId ?? (await pickOrderId(deps.providers, ctx.customerId, 'active'));
+    const orderId = ctx.orderId ?? (await pickOrderId(deps.providers, ctx.customerId, 'delivering'));
     if (!orderId) return { reply: "Happy to check — which order? Tap it from your orders and I'll pull up the live status.", status: 'awaiting_user' };
 
     const details = await deps.providers.orders.getOrderDetails(orderId);

@@ -12,12 +12,19 @@ export default function App() {
   const [view, setView] = useState<View>('home');
   const [userId, setUserId] = useState<string>();
   const [resumeThreadId, setResumeThreadId] = useState<string>();
+  const [chatOrderId, setChatOrderId] = useState<string>();
 
   useEffect(() => {
     api.profiles().then((p) => setUserId(p[0]?.id)).catch(() => {});
   }, []);
 
+  function openChat(orderId?: string) {
+    setChatOrderId(orderId);
+    setView('chat');
+  }
+
   function resume(id: string) {
+    setChatOrderId(undefined);
     setResumeThreadId(id);
     setView('chat');
   }
@@ -40,10 +47,10 @@ export default function App() {
       </header>
 
       <main className="min-h-0 flex-1">
-        {view === 'home' && <Home customerId={userId} onOpenChat={() => setView('chat')} onResumeThread={resume} />}
-        {/* Chat + WhatsApp stay mounted so they keep polling and can notify while you're elsewhere. */}
+        {view === 'home' && <Home customerId={userId} onOpenChat={openChat} onResumeThread={resume} />}
+        {/* The chat stays mounted so it keeps polling and can notify while you're elsewhere. */}
         <div className={view === 'chat' ? 'h-full' : 'hidden'}>
-          <Arena customerId={userId} channel="web" active={view === 'chat'} resumeThreadId={resumeThreadId} onResumed={() => setResumeThreadId(undefined)} onBack={() => setView('home')} />
+          <Arena customerId={userId} channel="web" active={view === 'chat'} initialOrderId={chatOrderId} resumeThreadId={resumeThreadId} onResumed={() => setResumeThreadId(undefined)} onBack={() => setView('home')} />
         </div>
         {view === 'whatsapp' && <WhatsApp customerId={userId} />}
         {view === 'inbox' && <Inbox active />}
