@@ -83,6 +83,7 @@ export interface TurnResult {
   latencyMs: number;
   action?: { type: string };
   data?: Record<string, unknown>;
+  suggestions?: string[];
 }
 
 export interface ChatResponse {

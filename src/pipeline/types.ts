@@ -56,6 +56,7 @@ export interface HandlerResult {
   escalationReason?: string;
   data?: Record<string, unknown>; // structured payload the UI renders (eta card, refund card, …)
   polish?: boolean; // override the default: ask (or skip) the composer's voice round-trip
+  suggestions?: string[]; // tappable quick-reply options offered to the customer
 }
 
 export interface TurnResult extends HandlerResult {

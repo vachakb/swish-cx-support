@@ -88,7 +88,7 @@ async function handleIssue(ctx: TurnContext, deps: HandlerDeps, order: Order, it
   // Clarifying question or no money action → reply and wait, don't touch the wallet.
   const acting = !decision.needMoreInfo && decision.remedy !== 'none' && (decision.remedy === 'redeliver' || decision.amountPaise > 0);
   if (!acting) {
-    return { reply: decision.reply, status: 'awaiting_user', polish: false, data: { kind: 'clarify', diagnosis: decision.diagnosis } };
+    return { reply: decision.reply, status: 'awaiting_user', polish: false, suggestions: decision.suggestions, data: { kind: 'clarify', diagnosis: decision.diagnosis } };
   }
 
   // Food-safety claims never auto-pay, photo or not — a human reviews them with priority.

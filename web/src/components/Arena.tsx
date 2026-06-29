@@ -34,6 +34,7 @@ export function Arena({ customerId, active, target, restoreConversationId, onCon
   const [trace, setTrace] = useState<Trace | null>(null);
   const [status, setStatus] = useState<string>();
   const [sending, setSending] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [mode, setMode] = useState<'intake' | 'chat'>('intake');
   const [intakeSeq, setIntakeSeq] = useState(0);
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
@@ -54,6 +55,7 @@ export function Arena({ customerId, active, target, restoreConversationId, onCon
     setMessages([]);
     setTrace(null);
     setStatus(undefined);
+    setSuggestions([]);
     seenAgent.current = new Set();
   }
 
@@ -117,12 +119,14 @@ export function Arena({ customerId, active, target, restoreConversationId, onCon
   async function send(text: string, image?: ImagePayload, echo = true, oid = orderId) {
     void ensureNotifyPermission();
     setSending(true);
+    setSuggestions([]);
     if (echo) setMessages((m) => [...m, localMsg('user', text)]);
     try {
       const { result, trace: t } = await api.chat({ conversationId, customerId, orderId: oid, channel: 'web', text, image });
       setConversationId(result.conversationId);
       setTrace(t);
       setStatus(result.status);
+      setSuggestions(result.suggestions ?? []);
       setMessages((m) => [...m, localMsg('assistant', result.reply)]);
     } catch {
       setMessages((m) => [...m, localMsg('assistant', 'Sorry — I had trouble reaching support just now. Please try again.')]);
@@ -164,6 +168,15 @@ export function Arena({ customerId, active, target, restoreConversationId, onCon
         ) : (
           <>
             <MessageList messages={messages} sending={sending} channel="web" placeholder="Tell us what's up and we'll help." />
+            {suggestions.length > 0 && (
+              <div className="border-t border-neutral-100 bg-white px-4 py-2.5">
+                <div className="mx-auto flex w-full max-w-2xl flex-wrap gap-2">
+                  {suggestions.map((s) => (
+                    <button key={s} type="button" onClick={() => void send(s)} className="rounded-full border border-swish-200 bg-swish-50 px-3.5 py-1.5 text-sm font-medium text-swish-700 transition hover:bg-swish-100">{s}</button>
+                  ))}
+                </div>
+              </div>
+            )}
             {(status === 'closed' || status === 'resolved') && (
               <div className="border-t border-amber-100 bg-amber-50 px-4 py-2 text-center text-xs font-medium text-amber-700">This conversation was closed — send a message to reopen it.</div>
             )}

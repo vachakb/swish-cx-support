@@ -108,6 +108,7 @@ export async function runTurn(input: TurnInput, deps: EngineDeps): Promise<TurnR
     action: result.action,
     escalationReason: result.escalationReason,
     data: result.data,
+    suggestions: result.suggestions,
     intent: routed.intent,
     sentiment: routed.sentiment,
     latencyMs: tracer.latencyMs,
