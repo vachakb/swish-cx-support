@@ -24,17 +24,23 @@ describe('pipeline runTurn (mock LLM)', () => {
     expect(r.reply).toMatch(/min/);
   });
 
-  it('auto-resolves a spillage claim for a trusted customer (issues credit)', async () => {
-    const r = await runTurn({ channel: 'web', customerId: 'pc_trust', orderId: 'po_delivered', text: 'my order was completely spilled' }, deps);
-    expect(r.intent).toBe('order_issue');
-    expect(r.status).toBe('resolved');
-    expect(r.action?.type).toBe('credit');
+  it('asks before acting on a vague issue, then resolves a trusted customer', async () => {
+    const r1 = await runTurn({ channel: 'web', customerId: 'pc_trust', orderId: 'po_delivered', text: 'my order had a spill' }, deps);
+    expect(r1.intent).toBe('order_issue');
+    expect(r1.status).toBe('awaiting_user'); // gathers info first — no blind credit
+    expect(r1.action).toBeUndefined();
+    expect(r1.reply).toMatch(/\?/);
+    const r2 = await runTurn({ channel: 'web', customerId: 'pc_trust', orderId: 'po_delivered', conversationId: r1.conversationId, text: 'the paneer roll spilled everywhere and was soaked' }, deps);
+    expect(r2.status).toBe('resolved');
+    expect(r2.action?.type).toBe('credit');
   });
 
-  it('escalates a claim from a high-velocity (fraudy) account', async () => {
-    const r = await runTurn({ channel: 'web', customerId: 'pc_fraud', orderId: 'po_fraud_delivered', text: 'this is the wrong order, refund me' }, deps);
-    expect(r.intent).toBe('order_issue');
-    expect(r.status).toBe('escalated');
+  it('escalates a high-velocity (fraudy) account once it proposes an action', async () => {
+    const r1 = await runTurn({ channel: 'web', customerId: 'pc_fraud', orderId: 'po_fraud_delivered', text: 'I got the wrong item' }, deps);
+    expect(r1.status).toBe('awaiting_user');
+    const r2 = await runTurn({ channel: 'web', customerId: 'pc_fraud', orderId: 'po_fraud_delivered', conversationId: r1.conversationId, text: 'it was completely the wrong item, please refund me' }, deps);
+    expect(r2.intent).toBe('order_issue');
+    expect(r2.status).toBe('escalated');
   });
 
   it('answers the referral-reward hybrid from wallet data', async () => {

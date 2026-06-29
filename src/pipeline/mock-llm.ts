@@ -1,7 +1,16 @@
 import type { MockHandlers } from '../llm';
 import type { VisionScore } from '../types';
+import type { ResolveDecision } from './resolve';
 import { detectLanguage, detectSentiment, ruleIntent, tailIntent } from './router';
 import type { RouteResult } from './types';
+
+function mockIssueLabel(text: string): string {
+  if (/spill|leak|soak/i.test(text)) return 'the spillage';
+  if (/missing|only got|didn'?t|short/i.test(text)) return 'the missing item';
+  if (/wrong|incorrect/i.test(text)) return 'the wrong item';
+  if (/damag|broke|crush|smash/i.test(text)) return 'the damage';
+  return 'the issue';
+}
 
 function mockVisionIssue(text: string): VisionScore['issueType'] {
   if (/spill|leak|soak/i.test(text)) return 'spillage';
@@ -30,6 +39,34 @@ export function buildMockHandlers(): MockHandlers {
         severity: 0.8,
         confidence: 0.75,
       }),
+      // Heuristic stand-in for the resolution agent: ask once when there's no evidence,
+      // then propose a modest partial credit. (The real intelligence is Gemini's.)
+      resolve: (req): ResolveDecision => {
+        const t = req.prompt;
+        const hasPhoto = /attached a photo/i.test(t) && !/No photo attached/i.test(t);
+        const askedBefore = /\nassistant:/i.test(t);
+        const issue = mockIssueLabel(t);
+        if (!hasPhoto && !askedBefore) {
+          return {
+            sentiment: 'negative',
+            diagnosis: `Reported ${issue}`,
+            needMoreInfo: true,
+            reply: "I'm really sorry to hear that. So I can make this right, could you tell me which item was affected and what exactly went wrong?",
+            remedy: 'none',
+            amountPaise: 0,
+            reason: issue,
+          };
+        }
+        return {
+          sentiment: 'negative',
+          diagnosis: `${issue} confirmed`,
+          needMoreInfo: false,
+          reply: `Thanks for the details — I'm sorry about ${issue}. I'm arranging a credit to make up for it right now.`,
+          remedy: 'credit',
+          amountPaise: 6000,
+          reason: issue,
+        };
+      },
     },
   };
 }

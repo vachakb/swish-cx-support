@@ -36,6 +36,7 @@ export async function runTurn(input: TurnInput, deps: EngineDeps): Promise<TurnR
   }
 
   const tracer = new Tracer(conversation.id);
+  tracer.note('llm', { provider: deps.llm.name });
   let routed: RouteResult;
   try {
     routed = await tracer.step('route', () => route(gate.text, deps.llm));
