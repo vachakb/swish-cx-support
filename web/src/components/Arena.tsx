@@ -212,7 +212,7 @@ export function Arena({ customerId, active, target, restoreConversationId, onCon
                 </div>
               </div>
             )}
-            {(status === 'closed' || status === 'resolved') && (
+            {status === 'closed' && (
               <div className="border-t border-amber-100 bg-amber-50 px-4 py-2 text-center text-xs font-medium text-amber-700">This conversation was closed — send a message to reopen it.</div>
             )}
             <Composer sending={sending} onSend={(t, img) => void send(t, img)} />

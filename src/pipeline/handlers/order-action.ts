@@ -12,19 +12,16 @@ import type { Handler, HandlerDeps, HandlerResult, TurnContext } from '../types'
 import { pickOrderId } from './util';
 
 const CANCELLABLE = new Set(['placed', 'preparing']);
+// Yes/no parsing for the cancel confirmation step.
+const CONFIRM = /\b(yes|yeah|yep|yup|confirm(ed)?|go ahead|do it|proceed|sure|ok(ay)?|please)\b|cancel it/i;
+const DECLINE = /\b(no|nope|nah|don'?t|keep (it|my order)|leave it|never ?mind|nvm|stop|wait)\b/i;
 // Food-safety claims (foreign object, contamination, illness) never auto-resolve — a human reviews them.
 const SERIOUS = /\b(bug|insect|cockroach|roach|worm|maggot|hair|glass|plastic|metal|foreign|contaminat|mou?ld|rotten|spoil|expired|sick|ill|vomit|food pois|allerg)/i;
 const MISSING = /\b(missing|didn'?t (get|receive)|only (got|received)|received only|short|incomplete|forgot|left out|not (in|included))\b/i;
 type Remedy = ResolveDecision['remedy'];
 
-async function handleCancel(ctx: TurnContext, deps: HandlerDeps, order: Order): Promise<HandlerResult> {
-  if (!CANCELLABLE.has(order.status)) {
-    return {
-      reply: `That order's already ${order.status} — since we cook fresh and fast, I can't cancel it now. But if anything's off when it arrives, tell me and I'll fix it right away.`,
-      status: 'resolved',
-      data: { kind: 'cancel', allowed: false },
-    };
-  }
+// Actually run the cancellation (idempotent) — only reached after the customer explicitly confirms.
+async function executeCancel(ctx: TurnContext, deps: HandlerDeps, order: Order): Promise<HandlerResult> {
   const action: ActionRequest = {
     type: 'cancel',
     orderId: order.id,
@@ -43,6 +40,50 @@ async function handleCancel(ctx: TurnContext, deps: HandlerDeps, order: Order): 
     status: 'resolved',
     action,
     data: { kind: 'cancel', allowed: true, amount: order.total },
+  };
+}
+
+// Cancelling is destructive and moves money, so the model never executes it directly: it names the
+// specific order, confirms, and acts only on an explicit "yes".
+async function handleCancel(ctx: TurnContext, deps: HandlerDeps): Promise<HandlerResult> {
+  const lastBot = [...ctx.history].reverse().find((m) => m.role === 'assistant');
+  const pending = lastBot?.payload as { kind?: string; topic?: string; orderId?: string } | null | undefined;
+
+  // Step 2 — answering the confirmation we asked for last turn.
+  if (pending?.kind === 'clarify' && pending.topic === 'cancel_confirm' && pending.orderId) {
+    if (DECLINE.test(ctx.input.text)) {
+      return { reply: "No worries — I've left your order exactly as it is. Anything else I can help with?", status: 'awaiting_user', data: { kind: 'cancel', allowed: false } };
+    }
+    if (CONFIRM.test(ctx.input.text)) {
+      const order = await deps.providers.orders.getOrder(pending.orderId);
+      if (!order) return { reply: "I couldn't find that order anymore — could you double-check?", status: 'awaiting_user' };
+      if (!CANCELLABLE.has(order.status)) return { reply: `That order's already ${order.status}, so there's nothing to cancel now.`, status: 'resolved', data: { kind: 'cancel', allowed: false } };
+      return executeCancel(ctx, deps, order);
+    }
+    // Unclear answer → ask once more, keep the same order pending.
+    return { reply: 'Just so I get it right — should I go ahead and cancel it? (yes / no)', status: 'awaiting_user', suggestions: ['Yes, cancel it', 'No, keep it'], data: { kind: 'clarify', intent: 'cancel_order', topic: 'cancel_confirm', orderId: pending.orderId } };
+  }
+
+  // Step 1 — fresh request → find the order and confirm before touching anything.
+  const orderId = ctx.orderId ?? (await pickOrderId(deps.providers, ctx.customerId, 'cancellable'));
+  if (!orderId) return { reply: "Sure — which order would you like to cancel? Tap it from your orders and I'll take it from there.", status: 'awaiting_user', data: { kind: 'clarify', intent: 'cancel_order', topic: 'cancel_pick' } };
+  const details = await deps.providers.orders.getOrderDetails(orderId);
+  if (!details) return { reply: "I couldn't find that order — could you double-check it?", status: 'awaiting_user' };
+  const { order, items } = details;
+  if (!CANCELLABLE.has(order.status)) {
+    return {
+      reply: `That order's already ${order.status} — since we cook fresh and fast, I can't cancel it now. But if anything's off when it arrives, tell me and I'll fix it right away.`,
+      status: 'resolved',
+      data: { kind: 'cancel', allowed: false },
+    };
+  }
+  const first = items[0];
+  const label = first ? `your ${first.name}${items.length > 1 ? ` +${items.length - 1} more` : ''} order` : 'this order';
+  return {
+    reply: `Just to confirm — you'd like to cancel ${label} and get ${formatINR(order.total)} back to your original payment? I can't undo a cancellation once it's done.`,
+    status: 'awaiting_user',
+    suggestions: ['Yes, cancel it', 'No, keep it'],
+    data: { kind: 'clarify', intent: 'cancel_order', topic: 'cancel_confirm', orderId: order.id },
   };
 }
 
@@ -172,14 +213,9 @@ async function handleIssue(ctx: TurnContext, deps: HandlerDeps, order: Order, it
 export const orderActionHandler: Handler = {
   intents: ['order_issue', 'cancel_order'],
   async handle(ctx, deps) {
-    const prefer = ctx.route.intent === 'cancel_order' ? 'cancellable' : 'delivered';
-    const orderId = ctx.orderId ?? (await pickOrderId(deps.providers, ctx.customerId, prefer));
+    if (ctx.route.intent === 'cancel_order') return handleCancel(ctx, deps);
+    const orderId = ctx.orderId ?? (await pickOrderId(deps.providers, ctx.customerId, 'delivered'));
     if (!orderId) return { reply: "Sure — which order is this about? Tap it from your orders list and I'll jump right in.", status: 'awaiting_user' };
-    if (ctx.route.intent === 'cancel_order') {
-      const order = await deps.providers.orders.getOrder(orderId);
-      if (!order) return { reply: "I couldn't find that order — could you double-check it?", status: 'awaiting_user' };
-      return handleCancel(ctx, deps, order);
-    }
     const details = await deps.providers.orders.getOrderDetails(orderId);
     if (!details) return { reply: "I couldn't find that order — could you double-check it?", status: 'awaiting_user' };
     return handleIssue(ctx, deps, details.order, details.items);

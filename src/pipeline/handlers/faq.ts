@@ -61,11 +61,24 @@ async function referralStatus(ctx: TurnContext, deps: HandlerDeps): Promise<Hand
   };
 }
 
-async function serviceability(text: string, deps: HandlerDeps): Promise<HandlerResult> {
+async function serviceability(text: string, deps: HandlerDeps, alreadyAsked = false): Promise<HandlerResult> {
   const areas = await repo.listServiceability();
   const hit = areas.find((a) => areaMatches(a.area, text));
   if (!hit) {
-    return { reply: "Which area or city are you asking about? Tell me and I'll check if Swish delivers there.", status: 'awaiting_user' };
+    // Already asked once and still no match → they named a place we don't cover. Say so instead of looping.
+    if (alreadyAsked) {
+      return {
+        reply: "We're not live in that area just yet — Swish runs across parts of Bengaluru today, and we're expanding fast. I can note your interest so you hear the moment we launch there. 💚",
+        status: 'resolved',
+        data: { kind: 'serviceability', serviceable: false },
+      };
+    }
+    // Ask once, set the context, and mark it so the follow-up routes back here as the area answer.
+    return {
+      reply: "Swish is live across parts of Bengaluru right now. Which area are you in, and I'll confirm we deliver there?",
+      status: 'awaiting_user',
+      data: { kind: 'clarify', intent: 'faq', topic: 'serviceability' },
+    };
   }
   if (hit.serviceable) {
     return {
@@ -87,7 +100,11 @@ export const faqHandler: Handler = {
     if (ctx.route.intent === 'referral_status') return referralStatus(ctx, deps);
     if (ctx.route.intent === 'refund_status') return refundStatus(ctx, deps);
     const text = ctx.input.text;
-    if (SERVICEABILITY.test(text)) return serviceability(text, deps);
+    // If our last turn asked "which area?", treat this reply as the area (even if it doesn't look like a serviceability query).
+    const lastBot = [...ctx.history].reverse().find((m) => m.role === 'assistant');
+    const clarify = lastBot?.payload as { kind?: string; topic?: string } | null | undefined;
+    const resumingArea = clarify?.kind === 'clarify' && clarify.topic === 'serviceability';
+    if (resumingArea || SERVICEABILITY.test(text)) return serviceability(text, deps, resumingArea);
     const article = await repo.searchFaq(text); // DB-backed; same content as the self-serve Help module
     if (article) return { reply: article.answer, status: 'resolved', data: { kind: 'faq', id: article.id } };
     return { reply: 'Happy to help! Is this about referrals, serviceable areas, cancellations, or an order?', status: 'awaiting_user' };

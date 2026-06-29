@@ -50,7 +50,12 @@ export async function runTurn(input: TurnInput, deps: EngineDeps): Promise<TurnR
   // Continuity: if our last turn asked an order-issue clarifying question, keep a context-free
   // follow-up (e.g. "strawberry cake") in that flow instead of dropping it to the generic fallback.
   const lastBot = [...history].reverse().find((m) => m.role === 'assistant');
-  const midResolution = (lastBot?.payload as { kind?: string } | null | undefined)?.kind === 'clarify';
+  // A clarifying turn marks itself with kind:'clarify' and (optionally) the intent to resume, so a
+  // context-free follow-up ("delhi hauz khas", "yes cancel it") stays in that flow instead of dropping
+  // to the generic fallback. Defaults to order_issue for the original resolution flow.
+  const clarify = lastBot?.payload as { kind?: string; intent?: Intent } | null | undefined;
+  const midResolution = clarify?.kind === 'clarify';
+  const resumeIntent: Intent = clarify?.intent ?? 'order_issue';
 
   let routed: RouteResult;
   try {
@@ -63,8 +68,8 @@ export async function runTurn(input: TurnInput, deps: EngineDeps): Promise<TurnR
   // only an explicit switch (human / cancel / done) breaks out. A reply like "the rider never showed"
   // must not get re-routed to order-status and lose the thread.
   if (midResolution && !OVERRIDE_INTENTS.has(routed.intent)) {
-    if (routed.intent !== 'order_issue') tracer.note('continuity', { from: routed.intent, to: 'order_issue' });
-    routed = { ...routed, intent: 'order_issue' };
+    if (routed.intent !== resumeIntent) tracer.note('continuity', { from: routed.intent, to: resumeIntent });
+    routed = { ...routed, intent: resumeIntent };
   }
 
   const ctx: TurnContext = {
