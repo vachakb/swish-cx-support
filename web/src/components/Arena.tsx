@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { api } from '../api';
+import { api, apiUrl } from '../api';
 import { ensureNotifyPermission, notify } from '../notify';
 import type { Message, OrderWithItems, Suggestion, Trace } from '../types';
 import { Composer } from './Composer';
@@ -124,7 +124,7 @@ export function Arena({ customerId, active, target, restoreConversationId, onCon
   // Primary path: a live SSE stream delivers an agent reply (or the auto-close note) the instant it's sent.
   useEffect(() => {
     if (!conversationId) return;
-    const es = new EventSource(`/api/conversations/${conversationId}/events`);
+    const es = new EventSource(apiUrl(`/api/conversations/${conversationId}/events`));
     es.addEventListener('message', (e) => {
       try {
         const m = JSON.parse(e.data) as { id: string; role: Message['role']; text: string; createdAt: string; payload?: { kind?: string } | null };

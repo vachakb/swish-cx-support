@@ -4,6 +4,8 @@ import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   root: 'web',
+  // Load .env from the project root (the backend's .env), not web/ — so VITE_API_URL is picked up.
+  envDir: process.cwd(),
   plugins: [react(), tailwindcss()],
   server: {
     port: 5173,

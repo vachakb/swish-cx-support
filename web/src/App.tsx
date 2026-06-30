@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api } from './api';
+import { api, apiUrl } from './api';
 import { Arena } from './components/Arena';
 import type { ChatTarget } from './components/Arena';
 import { Home } from './components/Home';
@@ -53,7 +53,7 @@ export default function App() {
   // wherever they are in the app — not tied to the chat they happen to have open.
   useEffect(() => {
     if (!userId) return;
-    const es = new EventSource(`/api/customers/${userId}/events`);
+    const es = new EventSource(apiUrl(`/api/customers/${userId}/events`));
     es.addEventListener('message', (e) => {
       try {
         const ev = JSON.parse(e.data) as { conversationId: string; text: string };

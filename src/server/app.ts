@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
+import { cors } from 'hono/cors';
 import * as z from 'zod';
 import { engine } from '../app';
 import { buildSendPayload, parseInbound, sendMessage, verifyWebhook } from '../channels/whatsapp';
@@ -13,6 +14,9 @@ import { rateLimit } from './rate-limit';
 const REFUND_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 export const app = new Hono();
+
+// CORS: only matters cross-origin (see VITE_API_URL); explicit allowlist, never '*'. Handles preflight before rate limiting.
+app.use('/api/*', cors({ origin: config.corsOrigins }));
 
 // In-process rate limiting: a generous global ceiling, plus a tighter cap on the LLM-backed chat path.
 app.use('/api/*', rateLimit({ limit: config.rateLimit.global, windowMs: config.rateLimit.windowMs }));

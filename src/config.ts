@@ -28,6 +28,8 @@ export const config = {
     global: Number(process.env.RATE_LIMIT_GLOBAL ?? 200),
     chat: Number(process.env.RATE_LIMIT_CHAT ?? 30),
   },
+  // CORS allowlist (explicit origins, never '*'). Only relevant when the web app is a different origin (see VITE_API_URL).
+  corsOrigins: (process.env.CORS_ORIGINS ?? 'http://localhost:5173,http://localhost:4173').split(',').map((o) => o.trim()).filter(Boolean),
   // WhatsApp Cloud API. With access token + phone-number id set, sends are real; otherwise sim mode.
   whatsapp: {
     verifyToken: process.env.WHATSAPP_VERIFY_TOKEN ?? 'swish-verify',

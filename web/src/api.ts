@@ -1,8 +1,12 @@
 import type { ChatResponse, Conversation, Customer, FaqCategory, Message, Order, OrderWithItems, Refund, Trace, Wallet } from './types';
 
-async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, init);
-  if (!res.ok) throw new Error(`${res.status} ${url}`);
+// API base URL: empty = same-origin (prod) or the Vite dev proxy; set VITE_API_URL to target a separate backend origin.
+export const API_BASE = import.meta.env.VITE_API_URL ?? '';
+export const apiUrl = (path: string) => `${API_BASE}${path}`;
+
+async function jsonFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(apiUrl(path), init);
+  if (!res.ok) throw new Error(`${res.status} ${path}`);
   return res.json() as Promise<T>;
 }
 
