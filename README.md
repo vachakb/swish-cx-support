@@ -49,6 +49,24 @@ You're signed in as the seeded demo customer with a few orders. Open **Chat with
 - *"Where's my referral reward?"* → reads the live wallet — an FAQ that's secretly a data lookup.
 - **Shared Inbox** tab → open the escalated dispute and reply as a human → the customer gets a notification back in their chat.
 
+## Configuration (`.env`)
+
+`cp .env.example .env`, then set **`GEMINI_API_KEY`** — that's the only value you need. Everything else has a working default, and the optional vars ship commented-out in `.env.example`, so they fall back to those defaults until you choose to override them.
+
+| Variable | Required | Default | Purpose |
+|---|---|---|---|
+| `GEMINI_API_KEY` | **for real responses** | — | Google AI Studio key. Blank → deterministic **mock** (boots, but canned + rule-only — not the real product). |
+| `LLM_PROVIDER` | no | auto | Force `gemini` or `mock`; blank auto-selects (gemini if a key is present, else mock). |
+| `PORT` | no | `8787` | API port — the dev proxy and `npm start` both target it. |
+| `DATABASE_URL` | no | `file:./data/swish.db` | libSQL / SQLite connection string. |
+| `GEMINI_MODEL_FAST` / `_SMART` / `_VISION` | no | `gemini-3.1-flash-lite` / `gemini-3.5-flash` / `gemini-3.5-flash` | Per-tier model ids (routing + sentiment / reasoning / vision). |
+| `RATE_LIMIT_ENABLED` / `_WINDOW_MS` / `_GLOBAL` / `_CHAT` | no | on / `60000` / `200` / `30` | In-process per-IP rate limit (global ceiling + a tighter cap on `/api/chat`); set `RATE_LIMIT_ENABLED=false` to disable. |
+| `VITE_API_URL` | no | relative (same-origin) | Frontend → API base URL. Set **only** if the web app is served on a different origin than the API. |
+| `CORS_ORIGINS` | no | `localhost:5173,4173` | API CORS allowlist (or `*`). Only used when `VITE_API_URL` is cross-origin. |
+| `WHATSAPP_VERIFY_TOKEN` / `ACCESS_TOKEN` / `PHONE_NUMBER_ID` / `GRAPH_BASE` | no | simulator | Set access token + phone-number id to send real WhatsApp messages; otherwise the WhatsApp tab is a simulator. |
+
+Blank values are treated as unset (they fall back to the defaults above), and the startup log confirms your LLM mode: `[llm: gemini]` or `[llm: mock — no GEMINI_API_KEY found in .env]`. The annotated template is `.env.example`.
+
 ## Architecture
 
 ```
