@@ -28,7 +28,7 @@ npm run build && npm start    # serves the UI + API on one port
 
 ### Gemini API key — needed for real responses
 
-The engine needs a Gemini key to behave as intended. **Without one it falls back to a deterministic *mock*** — the app boots and the UI works, but replies are canned and routing is rule-only, so it won't act like the real product. Get a free key at [aistudio.google.com](https://aistudio.google.com/apikey) and put it in **`.env`** (not `.env.example`):
+The engine needs a Gemini key to behave as intended. **Without one it falls back to a deterministic *mock*** — the app boots and the UI works, but replies are canned and routing is rule-only, so it won't act like the real product. 
 
 ```
 GEMINI_API_KEY=AIza...
