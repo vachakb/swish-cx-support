@@ -2,7 +2,7 @@
 
 Automated customer-support engine for **Swish** (10-minute food delivery). It resolves FAQs and order issues end-to-end, escalates gracefully to a human when it should, and is built to plug into Swish's stack. **The engine is the product; the web app is a demo surface.**
 
-> Runs with **no API key** out of the box (deterministic mock LLM). Add a Gemini key to switch on the real models. Fully typed; 42 passing tests.
+> Add a free **Gemini API key** for real responses — without one it falls back to a deterministic mock (boots fine, but canned and rule-only). Fully typed; 47 passing tests.
 
 📄 **The full write-up of the entire process** — research, design decisions and trade-offs, results, and what I deliberately didn't build — is in **[`docs/DESIGN.md`](docs/DESIGN.md)**.
 
@@ -18,24 +18,27 @@ Automated customer-support engine for **Swish** (10-minute food delivery). It re
 
 ```bash
 npm install
-npm run setup      # migrate + seed the local SQLite demo data
-npm run dev        # API on :8787, web on :5173
-# open http://localhost:5173
+cp .env.example .env          # then add your GEMINI_API_KEY (see below) — the only value you need to set
+npm run setup                 # migrate + seed the local SQLite demo
+npm run build && npm start    # serves the UI + API on one port
+# open http://localhost:8787
 ```
 
-No API key needed — it runs on a deterministic mock LLM. To use real Gemini:
+**Requirements:** Node ≥ 22 and npm. No external services, no Docker — the database is a local SQLite file. Works on macOS, Linux, and Windows (PowerShell). Everything except the Gemini key has a working default (port, CORS, the API URL, model ids), so there's nothing else to configure.
 
-```bash
-cp .env.example .env     # then set GEMINI_API_KEY=...  (free key from aistudio.google.com)
+### Gemini API key — needed for real responses
+
+The engine needs a Gemini key to behave as intended. **Without one it falls back to a deterministic *mock*** — the app boots and the UI works, but replies are canned and routing is rule-only, so it won't act like the real product. Get a free key at [aistudio.google.com](https://aistudio.google.com/apikey) and put it in **`.env`** (not `.env.example`):
+
+```
+GEMINI_API_KEY=AIza...
 ```
 
-Single-port production build (the API serves the built UI):
+The startup log shows which mode you're in: `[llm: gemini]` (key loaded) or `[llm: mock — no GEMINI_API_KEY found in .env]`.
 
-```bash
-npm run build && npm start   # http://localhost:8787
-```
+### Developing
 
-**Requirements:** Node ≥ 22 (developed on 26) and npm. No external services — the database is a local SQLite file.
+`npm run dev` runs Vite (hot-reload, :5173) + the API (:8787) together for live editing. To just run or evaluate the app, use `npm run build && npm start` above — one process, one port, nothing to configure.
 
 ## Try it
 
@@ -61,7 +64,7 @@ The rendered architecture diagram and the rationale behind each stage are in [`d
 
 ## Tech stack
 
-TypeScript 6 / Node (ESM) · **Hono** (API) · **Drizzle + libSQL/SQLite** (data) · **Gemini** via `@google/genai`, pluggable, with a deterministic mock · **json-rules-engine** (policy) · **React 19 + Vite 8 + Tailwind v4** (UI) · **vitest** (42 tests).
+TypeScript 6 / Node (ESM) · **Hono** (API) · **Drizzle + libSQL/SQLite** (data) · **Gemini** via `@google/genai`, pluggable, with a deterministic mock · **json-rules-engine** (policy) · **React 19 + Vite 8 + Tailwind v4** (UI) · **vitest** (47 tests).
 
 ## Commands
 
@@ -70,7 +73,7 @@ TypeScript 6 / Node (ESM) · **Hono** (API) · **Drizzle + libSQL/SQLite** (data
 | `npm run dev` | API + web, hot reload |
 | `npm run setup` | migrate + seed demo data |
 | `npm run build` / `npm start` | build UI / serve UI + API on one port |
-| `npm test` | run the test suite (42 tests) |
+| `npm test` | run the test suite (47 tests) |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run bakeoff` | routing-strategy comparison (accuracy + latency) |
 | `npm run db:generate` | regenerate Drizzle migrations after a schema change |
