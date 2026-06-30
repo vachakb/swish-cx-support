@@ -18,7 +18,7 @@ import { db } from './client';
 import { faqSeed } from '../faq/content';
 
 // One demo customer with a spread of orders + a little history, so the Help screen has real content.
-const CUSTOMER = 'cust_arjun';
+const CUSTOMER = 'cust_swisher';
 
 const NOW = Date.now();
 const mins = (n: number) => new Date(NOW - n * 60_000);
@@ -37,9 +37,9 @@ async function clear() {
 async function seed() {
   await clear();
 
-  await db.insert(customers).values([{ id: CUSTOMER, name: 'Arjun Mehta', phone: '+919000011111', email: 'arjun@example.com', city: 'Bengaluru', area: 'HSR Layout', accountAgeDays: 420 }]);
+  await db.insert(customers).values([{ id: CUSTOMER, name: 'Swisher', phone: '+919000011111', email: 'swisher@example.com', city: 'Bengaluru', area: 'HSR Layout', accountAgeDays: 420 }]);
 
-  await db.insert(wallets).values([{ customerId: CUSTOMER, creditBalance: 3000, referralCode: 'ARJUN150', referralsCompleted: 3, referralRewardEarned: 15000, referralRewardPending: 5000 }]);
+  await db.insert(wallets).values([{ customerId: CUSTOMER, creditBalance: 3000, referralCode: 'SWISHER150', referralsCompleted: 3, referralRewardEarned: 15000, referralRewardPending: 5000 }]);
 
   await db.insert(serviceability).values([
     { id: 'svc_hsr', city: 'Bengaluru', area: 'HSR Layout', serviceable: true },
@@ -92,11 +92,11 @@ async function seed() {
   await db.insert(messages).values([
     // Escalated payment dispute → a human teammate stepped in (shows the inbox → agent reply flow).
     { id: 'msg_a1', conversationId: 'cnv_active', role: 'user', text: 'I was charged twice for the same order and no one is helping!' },
-    { id: 'msg_a2', conversationId: 'cnv_active', role: 'assistant', text: "I'm really sorry, Arjun. A double charge needs a teammate to verify the payment — I've escalated this with all your details so you won't have to repeat anything." },
-    { id: 'msg_a3', conversationId: 'cnv_active', role: 'agent', text: "Hi Arjun, Meera from Swish here. I can see the duplicate ₹198 charge — I've reversed it to your UPI and it'll reflect within 24 hours. So sorry for the hassle!" },
+    { id: 'msg_a2', conversationId: 'cnv_active', role: 'assistant', text: "I'm really sorry, Swisher. A double charge needs a teammate to verify the payment — I've escalated this with all your details so you won't have to repeat anything." },
+    { id: 'msg_a3', conversationId: 'cnv_active', role: 'agent', text: "Hi Swisher, Meera from Swish here. I can see the duplicate ₹198 charge — I've reversed it to your UPI and it'll reflect within 24 hours. So sorry for the hassle!" },
     // A resolved food issue → the full consultative flow (understand → ask for proof → resolve).
     { id: 'msg_c1', conversationId: 'cnv_closed_1', role: 'user', text: 'something was off with my order' },
-    { id: 'msg_c2', conversationId: 'cnv_closed_1', role: 'assistant', text: "Oh no — I'm sorry, Arjun. What went wrong, and which item was affected?" },
+    { id: 'msg_c2', conversationId: 'cnv_closed_1', role: 'assistant', text: "Oh no — I'm sorry, Swisher. What went wrong, and which item was affected?" },
     { id: 'msg_c3', conversationId: 'cnv_closed_1', role: 'user', text: 'the egg bhurji sandwich was completely soggy and cold' },
     { id: 'msg_c4', conversationId: 'cnv_closed_1', role: 'assistant', text: 'That is not the experience we want at all. Could you share a quick photo so I can sort it right away?' },
     { id: 'msg_c5', conversationId: 'cnv_closed_1', role: 'user', text: 'sure, just sent it across' },

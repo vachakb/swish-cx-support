@@ -48,7 +48,7 @@ export function buildMockHandlers(): MockHandlers {
           return { reply: "We're not live there yet — Swish runs across parts of Bengaluru today, and we're expanding fast. I can note your interest so you hear when we launch! 💚", needsFollowup: false };
         }
         if (/deliver|available|serviceable|\barea\b/.test(q)) return { reply: 'Swish is live across parts of Bengaluru. Which area are you in, and I\'ll confirm we deliver there?', needsFollowup: true };
-        if (/refer|reward|invite/.test(q)) return { reply: "Your referral rewards show up in your Swish wallet — you've got ₹50 on the way once a friend's first order is delivered. Share code ARJUN150 to earn more!", needsFollowup: false };
+        if (/refer|reward|invite/.test(q)) return { reply: "Your referral rewards show up in your Swish wallet — you've got ₹50 on the way once a friend's first order is delivered. Share code SWISHER150 to earn more!", needsFollowup: false };
         return { reply: 'Happy to help! Could you tell me a little more about what you need?', needsFollowup: false };
       },
       // Heuristic stand-in for the resolution agent: ask once when there's no evidence,
