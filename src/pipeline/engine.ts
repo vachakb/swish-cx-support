@@ -57,8 +57,11 @@ export async function runTurn(input: TurnInput, deps: EngineDeps): Promise<TurnR
   let routed: RouteResult;
   try {
     routed = await tracer.step('route', () => route(gate.text, llm, undefined, pending));
-  } catch {
-
+  } catch (err) {
+    // Surface the cause (e.g. a failing Gemini call) instead of silently degrading to rules.
+    const message = err instanceof Error ? err.message : String(err);
+    tracer.note('route_error', { message });
+    console.warn('[router] LLM routing failed → rule fallback:', message);
     routed = { intent: ruleIntent(gate.text) ?? 'unknown', confidence: 0.3, sentiment: detectSentiment(gate.text), language: detectLanguage(gate.text) };
   }
 
@@ -80,7 +83,11 @@ export async function runTurn(input: TurnInput, deps: EngineDeps): Promise<TurnR
   let result: HandlerResult;
   try {
     result = await tracer.step(`handle:${routed.intent}`, () => handler.handle(ctx, { llm, providers: deps.providers, tracer }));
-  } catch {
+  } catch (err) {
+    // Surface the cause (most often a failing Gemini call) — the generic reply otherwise looks like a "mock" response.
+    const message = err instanceof Error ? err.message : String(err);
+    tracer.note('handler_error', { message });
+    console.warn(`[handler:${routed.intent}] failed → escalating:`, message);
     result = { reply: 'Something went wrong on my side — let me get a teammate to help you right away.', status: 'escalated', escalationReason: 'handler error' };
   }
 

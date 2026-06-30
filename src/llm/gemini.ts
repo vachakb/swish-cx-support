@@ -42,6 +42,8 @@ export function createGeminiLlm(apiKey: string): LlmProvider {
           return res;
         } catch (e) {
           lastErr = e;
+          // Make a bad key / 429 / region block visible at the source instead of failing silently.
+          console.warn(`[gemini] ${model} call failed: ${(e instanceof Error ? e.message : String(e)).slice(0, 200)}`);
           if (!isTransient(e)) throw e;
           await sleep(300 * (attempt + 1));
         }
