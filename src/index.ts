@@ -12,7 +12,14 @@ if (config.isProd) {
 }
 
 serve({ fetch: app.fetch, port: config.port }, (info) => {
-  console.log(`Swish Support → http://localhost:${info.port}  [llm: ${config.llmProvider}, whatsapp: ${config.whatsapp.live ? 'live' : 'sim'}]`);
+  // Spell out *why* it's mock so a missing/overridden key is obvious at a glance.
+  const llm =
+    config.llmProvider === 'gemini'
+      ? 'gemini'
+      : config.geminiApiKey
+        ? 'mock (LLM_PROVIDER=mock overrides the key)'
+        : 'mock — no GEMINI_API_KEY found in .env';
+  console.log(`Swish Support → http://localhost:${info.port}  [llm: ${llm}, whatsapp: ${config.whatsapp.live ? 'live' : 'sim'}]`);
 });
 
 // Close + sign off chats that have gone quiet — owned by the service, not triggered by a page load.
